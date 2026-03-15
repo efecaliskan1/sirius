@@ -94,7 +94,10 @@ export default function LoginPage() {
         setNotice('');
         setIsLoading(true);
         try {
-            await loginWithGoogle();
+            const result = await loginWithGoogle();
+            if (result?.redirecting) {
+                return;
+            }
             navigate('/');
         } catch (err) {
             setError(getAuthErrorMessage(err));

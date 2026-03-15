@@ -81,12 +81,18 @@ export function getAuthErrorMessage(error) {
             return 'Verify your email before signing in. Check your inbox for the confirmation link.';
         case 'auth/email-already-in-use':
             return 'This email is already registered. Try signing in instead.';
+        case 'auth/unauthorized-domain':
+            return 'Google sign-in is blocked for this domain. Add your live site domain to Firebase Authorized domains.';
         case 'auth/invalid-email':
             return 'Enter a valid email address.';
         case 'auth/invalid-credential':
         case 'auth/user-not-found':
         case 'auth/wrong-password':
             return 'Email or password is incorrect.';
+        case 'auth/popup-blocked':
+            return 'Popup was blocked by the browser. We will redirect you to Google instead.';
+        case 'auth/cancelled-popup-request':
+            return 'Google sign-in was interrupted. Please try again.';
         case 'auth/too-many-requests':
             return 'Too many attempts. Please wait a bit and try again.';
         case 'auth/popup-closed-by-user':

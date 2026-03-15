@@ -2,13 +2,15 @@ import { create } from 'zustand';
 import { auth, db } from '../firebase/config';
 import { 
     createUserWithEmailAndPassword, 
+    getRedirectResult,
     signInWithEmailAndPassword, 
     signOut, 
     onAuthStateChanged,
     sendEmailVerification,
     updateProfile,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    signInWithRedirect,
 } from 'firebase/auth';
 import { 
     doc, 
@@ -33,13 +35,53 @@ function saveAuthToLocal(user) {
     }
 }
 
+function buildDefaultUser(firebaseUser) {
+    return {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || 'Student',
+        email: firebaseUser.email,
+        profilePhoto: firebaseUser.photoURL || '',
+        createdAt: new Date().toISOString(),
+        streakCount: 0,
+        coinBalance: 0,
+        xp: 0,
+        lastActiveDate: '',
+        weeklyGoalMinutes: 900,
+        dashboardWidgets: null,
+        theme: 'calm',
+    };
+}
+
 const useAuthStore = create((set, get) => ({
     user: JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'),
     isAuthenticated: !!localStorage.getItem(STORAGE_KEY),
     isLoading: true,
 
+    ensureUserDocument: async (firebaseUser) => {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            return {
+                id: firebaseUser.uid,
+                email: firebaseUser.email,
+                name: firebaseUser.displayName || 'Student',
+                ...userData
+            };
+        }
+
+        const newUser = buildDefaultUser(firebaseUser);
+        await setDoc(userRef, newUser);
+        return newUser;
+    },
+
     // Initialize listener
     init: () => {
+        getRedirectResult(auth).catch((error) => {
+            console.error('Google redirect sign-in failed', error);
+        });
+
         onAuthStateChanged(auth, async (firebaseUser) => {
             try {
                 if (firebaseUser) {
@@ -49,15 +91,7 @@ const useAuthStore = create((set, get) => ({
                         return;
                     }
 
-                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-                    const userData = userDoc.exists() ? userDoc.data() : null;
-                    
-                    const finalUser = {
-                        id: firebaseUser.uid,
-                        email: firebaseUser.email,
-                        name: firebaseUser.displayName || 'Student',
-                        ...userData
-                    };
+                    const finalUser = await get().ensureUserDocument(firebaseUser);
                     
                     saveAuthToLocal(finalUser);
                     set({ user: finalUser, isAuthenticated: true, isLoading: false });
@@ -85,15 +119,7 @@ const useAuthStore = create((set, get) => ({
             throw createAuthError('auth/email-not-verified');
         }
 
-        const userDoc = await getDoc(doc(db, 'users', result.user.uid));
-        const userData = userDoc.data();
-        
-        const finalUser = {
-            id: result.user.uid,
-            email: result.user.email,
-            name: result.user.displayName || 'Student',
-            ...userData
-        };
+        const finalUser = await get().ensureUserDocument(result.user);
         
         saveAuthToLocal(finalUser);
         set({ user: finalUser, isAuthenticated: true });
@@ -102,42 +128,21 @@ const useAuthStore = create((set, get) => ({
 
     loginWithGoogle: async () => {
         const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        
-        if (userDoc.exists()) {
-            const userData = userDoc.data();
-            const finalUser = {
-                id: user.uid,
-                email: user.email,
-                name: user.displayName,
-                ...userData
-            };
+        provider.setCustomParameters({ prompt: 'select_account' });
+
+        try {
+            const result = await signInWithPopup(auth, provider);
+            const finalUser = await get().ensureUserDocument(result.user);
             saveAuthToLocal(finalUser);
             set({ user: finalUser, isAuthenticated: true });
-            return finalUser;
-        } else {
-            // First time login - create record
-            const newUser = {
-                id: user.uid,
-                name: user.displayName,
-                email: user.email,
-                profilePhoto: user.photoURL || '',
-                createdAt: new Date().toISOString(),
-                streakCount: 0,
-                coinBalance: 0,
-                xp: 0,
-                lastActiveDate: '',
-                weeklyGoalMinutes: 900,
-                dashboardWidgets: null,
-                theme: 'calm',
-            };
-            await setDoc(doc(db, 'users', user.uid), newUser);
-            saveAuthToLocal(newUser);
-            set({ user: newUser, isAuthenticated: true });
-            return newUser;
+            return { user: finalUser, redirecting: false };
+        } catch (error) {
+            if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
+                await signInWithRedirect(auth, provider);
+                return { user: null, redirecting: true };
+            }
+
+            throw error;
         }
     },
 
@@ -145,25 +150,17 @@ const useAuthStore = create((set, get) => ({
         const cleanName = normalizeName(name);
         const cleanEmail = normalizeEmail(email);
         const result = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-        await updateProfile(result.user, { displayName: cleanName });
-        await sendEmailVerification(result.user);
-        
         const newUser = {
-            id: result.user.uid,
+            ...buildDefaultUser(result.user),
             name: cleanName,
             email: cleanEmail,
-            profilePhoto: '',
-            createdAt: new Date().toISOString(),
-            streakCount: 0,
-            coinBalance: 0,
-            xp: 0,
-            lastActiveDate: '',
-            weeklyGoalMinutes: 900,
-            dashboardWidgets: null,
-            theme: 'calm',
         };
-
-        await setDoc(doc(db, 'users', result.user.uid), newUser);
+        
+        await Promise.all([
+            updateProfile(result.user, { displayName: cleanName }),
+            sendEmailVerification(result.user),
+            setDoc(doc(db, 'users', result.user.uid), newUser),
+        ]);
 
         await signOut(auth);
         saveAuthToLocal(null);
