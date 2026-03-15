@@ -104,9 +104,11 @@ export function getMonthYear(dateStr) {
 
 export function formatDateWithOptions(dateInput, options) {
     if (!dateInput) return '';
-    const date = typeof dateInput === 'string' && dateInput.includes('T')
-        ? new Date(dateInput)
-        : new Date(`${dateInput}T00:00:00`);
+    const date = dateInput instanceof Date
+        ? dateInput
+        : typeof dateInput === 'string' && dateInput.includes('T')
+            ? new Date(dateInput)
+            : new Date(`${dateInput}T00:00:00`);
 
     return new Intl.DateTimeFormat(TURKEY_LOCALE, {
         timeZone: TURKEY_TIMEZONE,
