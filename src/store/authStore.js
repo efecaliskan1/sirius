@@ -5,6 +5,7 @@ import {
     signInWithEmailAndPassword, 
     signOut, 
     onAuthStateChanged,
+    sendEmailVerification,
     updateProfile,
     GoogleAuthProvider,
     signInWithPopup
@@ -15,6 +16,12 @@ import {
     getDoc, 
     updateDoc 
 } from 'firebase/firestore';
+import {
+    createAuthError,
+    isPasswordAuthUser,
+    normalizeEmail,
+    normalizeName,
+} from '../utils/auth';
 
 const STORAGE_KEY = 'studywithme_auth';
 
@@ -35,6 +42,12 @@ const useAuthStore = create((set, get) => ({
     init: () => {
         onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
+                if (isPasswordAuthUser(firebaseUser) && !firebaseUser.emailVerified) {
+                    saveAuthToLocal(null);
+                    set({ user: null, isAuthenticated: false, isLoading: false });
+                    return;
+                }
+
                 const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
                 const userData = userDoc.exists() ? userDoc.data() : null;
                 
@@ -55,7 +68,13 @@ const useAuthStore = create((set, get) => ({
     },
 
     login: async (email, password) => {
-        const result = await signInWithEmailAndPassword(auth, email, password);
+        const result = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
+
+        if (isPasswordAuthUser(result.user) && !result.user.emailVerified) {
+            await signOut(auth);
+            throw createAuthError('auth/email-not-verified');
+        }
+
         const userDoc = await getDoc(doc(db, 'users', result.user.uid));
         const userData = userDoc.data();
         
@@ -113,13 +132,16 @@ const useAuthStore = create((set, get) => ({
     },
 
     signup: async (name, email, password) => {
-        const result = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(result.user, { displayName: name });
+        const cleanName = normalizeName(name);
+        const cleanEmail = normalizeEmail(email);
+        const result = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        await updateProfile(result.user, { displayName: cleanName });
+        await sendEmailVerification(result.user);
         
         const newUser = {
             id: result.user.uid,
-            name,
-            email,
+            name: cleanName,
+            email: cleanEmail,
             profilePhoto: '',
             createdAt: new Date().toISOString(),
             streakCount: 0,
@@ -132,10 +154,11 @@ const useAuthStore = create((set, get) => ({
         };
 
         await setDoc(doc(db, 'users', result.user.uid), newUser);
-        
-        saveAuthToLocal(newUser);
-        set({ user: newUser, isAuthenticated: true });
-        return newUser;
+
+        await signOut(auth);
+        saveAuthToLocal(null);
+        set({ user: null, isAuthenticated: false });
+        return { email: cleanEmail, requiresEmailVerification: true };
     },
 
     logout: async () => {

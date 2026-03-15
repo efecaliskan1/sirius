@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
+import {
+    getAuthErrorMessage,
+    normalizeEmail,
+    validateSignupForm,
+} from '../utils/auth';
 
 export default function SignupPage() {
     const signup = useAuthStore((s) => s.signup);
@@ -10,22 +15,38 @@ export default function SignupPage() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        if (password.length < 4) {
-            setError('Password must be at least 4 characters');
+        const normalizedEmail = normalizeEmail(email);
+        const validationError = validateSignupForm({
+            name,
+            email: normalizedEmail,
+            password,
+            confirmPassword,
+        });
+
+        if (validationError) {
+            setError(validationError);
             return;
         }
+
         setIsLoading(true);
         try {
-            await signup(name, email, password);
-            navigate('/');
+            const result = await signup(name, normalizedEmail, password);
+            navigate('/login', {
+                replace: true,
+                state: {
+                    email: result.email,
+                    notice: `We sent a verification link to ${result.email}. Verify your email before signing in.`,
+                },
+            });
         } catch (err) {
-            setError(err.message);
+            setError(getAuthErrorMessage(err));
             setIsLoading(false);
         }
     };
@@ -37,7 +58,7 @@ export default function SignupPage() {
             await loginWithGoogle();
             navigate('/');
         } catch (err) {
-            setError(err.message);
+            setError(getAuthErrorMessage(err));
             setIsLoading(false);
         }
     };
@@ -164,6 +185,21 @@ export default function SignupPage() {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                required
+                            />
+                            <p className="mt-1.5 text-[11px] text-slate-400">Use at least 8 characters with a letter and a number.</p>
+                        </div>
+                        <div>
+                            <label htmlFor="confirmPassword" className="block text-[13px] font-medium text-slate-500 mb-1.5">Confirm Password</label>
+                            <input
+                                id="confirmPassword"
+                                name="confirmPassword"
+                                autoComplete="new-password"
+                                className="input"
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="••••••••"
                                 required
                             />

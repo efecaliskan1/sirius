@@ -1,8 +1,13 @@
 import { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
 import { COMPANION_STAGES } from '../utils/constants';
+import {
+    getAuthErrorMessage,
+    normalizeEmail,
+    validateLoginForm,
+} from '../utils/auth';
 
 const STUDY_QUOTES = [
     { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
@@ -33,10 +38,12 @@ function getReturningUserInfo() {
 export default function LoginPage() {
     const login = useAuthStore((s) => s.login);
     const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
+    const location = useLocation();
     const navigate = useNavigate();
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(() => location.state?.email || '');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [notice, setNotice] = useState(() => location.state?.notice || '');
     const [isLoading, setIsLoading] = useState(false);
 
     const returningUser = useMemo(() => getReturningUserInfo(), []);
@@ -62,25 +69,35 @@ export default function LoginPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const normalizedEmail = normalizeEmail(email);
         setError('');
+        setNotice('');
+        const validationError = validateLoginForm({ email: normalizedEmail, password });
+
+        if (validationError) {
+            setError(validationError);
+            return;
+        }
+
         setIsLoading(true);
         try {
-            await login(email, password);
+            await login(normalizedEmail, password);
             navigate('/');
         } catch (err) {
-            setError(err.message);
+            setError(getAuthErrorMessage(err));
             setIsLoading(false);
         }
     };
 
     const handleGoogleLogin = async () => {
         setError('');
+        setNotice('');
         setIsLoading(true);
         try {
             await loginWithGoogle();
             navigate('/');
         } catch (err) {
-            setError(err.message);
+            setError(getAuthErrorMessage(err));
             setIsLoading(false);
         }
     };
@@ -191,6 +208,17 @@ export default function LoginPage() {
                             <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Or sign in with email</span>
                             <div className="flex-1 h-px bg-slate-100"></div>
                         </div>
+
+                        {notice && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-emerald-50 text-emerald-700 text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5" /></svg>
+                                {notice}
+                            </motion.div>
+                        )}
 
                         {error && (
                             <motion.div
