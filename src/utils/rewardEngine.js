@@ -1,5 +1,5 @@
 import { BADGE_DEFINITIONS, COINS_PER_SESSION, XP_PER_SESSION, XP_PER_TASK, LEVEL_THRESHOLDS, COMPANION_STAGES, MOTIVATIONAL_MESSAGES } from './constants';
-import { getToday } from './helpers';
+import { formatDateWithOptions, getDateKeyInTurkey, getToday } from './helpers';
 
 export function calculateCoins(session) {
     if (!session.completed) return 0;
@@ -125,13 +125,13 @@ export function getWeeklyStats(sessions) {
     for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = getDateKeyInTurkey(d);
         const daySessions = sessions.filter(
-            (s) => s.completed && s.createdAt && s.createdAt.startsWith(dateStr)
+            (s) => s.completed && s.createdAt && getDateKeyInTurkey(s.createdAt) === dateStr
         );
         const totalMinutes = daySessions.reduce((sum, s) => sum + (s.actualMinutes || 0), 0);
         weekDays.push({
-            day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+            day: formatDateWithOptions(d, { weekday: 'short' }),
             date: dateStr,
             minutes: totalMinutes,
             sessions: daySessions.length,
@@ -146,9 +146,9 @@ export function getHeatmapData(sessions, weeks = 12) {
     for (let i = weeks * 7 - 1; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(today.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = getDateKeyInTurkey(d);
         const daySessions = sessions.filter(
-            (s) => s.completed && s.createdAt && s.createdAt.startsWith(dateStr)
+            (s) => s.completed && s.createdAt && getDateKeyInTurkey(s.createdAt) === dateStr
         );
         const totalMinutes = daySessions.reduce((sum, s) => sum + (s.actualMinutes || 0), 0);
 
@@ -167,7 +167,7 @@ export function getHeatmapData(sessions, weeks = 12) {
 
         data.push({
             date: dateStr,
-            day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+            day: formatDateWithOptions(d, { weekday: 'short' }),
             minutes: totalMinutes,
             sessionsCount: daySessions.length,
             mainCourseId,
@@ -186,11 +186,15 @@ export function getWeeklyTrend(sessions, weeks = 8) {
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
 
-        const startStr = weekStart.toISOString().split('T')[0];
-        const endStr = weekEnd.toISOString().split('T')[0];
+        const startStr = getDateKeyInTurkey(weekStart);
+        const endStr = getDateKeyInTurkey(weekEnd);
 
         const weekSessions = sessions.filter(
-            (s) => s.completed && s.createdAt && s.createdAt.split('T')[0] >= startStr && s.createdAt.split('T')[0] <= endStr
+            (s) => {
+                if (!s.completed || !s.createdAt) return false;
+                const dateKey = getDateKeyInTurkey(s.createdAt);
+                return dateKey >= startStr && dateKey <= endStr;
+            }
         );
         const totalMinutes = weekSessions.reduce((sum, s) => sum + (s.actualMinutes || 0), 0);
         trend.push({
@@ -212,7 +216,7 @@ export function getSmartSuggestion(courses, topics = [], sessions, today) {
 
     completedSessions.forEach(s => {
         if (s.courseId && s.createdAt) {
-            const date = s.createdAt.split('T')[0];
+            const date = getDateKeyInTurkey(s.createdAt);
             if (!courseLastStudied[s.courseId] || date > courseLastStudied[s.courseId]) {
                 courseLastStudied[s.courseId] = date;
             }

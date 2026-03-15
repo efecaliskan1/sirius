@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import { getSessionStats, getWeeklyStats, getHeatmapData, getWeeklyTrend } from '../utils/rewardEngine';
-import { minutesToDisplay } from '../utils/helpers';
+import { formatDateTimeInTurkey, formatDateWithOptions, minutesToDisplay } from '../utils/helpers';
 
 const HEATMAP_COLORS = ['#f1f5f9', '#c7d2fe', '#818cf8', '#6366f1', '#4338ca'];
 
@@ -36,7 +36,7 @@ export default function StatsPage() {
         { label: 'Average Session', value: `${avgSessionLength}m`, icon: '⏱️', gradient: 'from-violet-50 to-fuchsia-50' },
         { label: 'Total Focus', value: minutesToDisplay(stats.totalMinutes), icon: '🧠', gradient: 'from-blue-50 to-indigo-50' },
         { label: 'Total Sessions', value: stats.totalSessions, icon: '🍅', gradient: 'from-rose-50 to-orange-50' },
-        { label: 'Best Day', value: bestDay.minutes > 0 ? (new Date(bestDay.date).toLocaleDateString('en-US', { weekday: 'short' })) : '-', icon: '🌟', gradient: 'from-amber-50 to-yellow-50' },
+        { label: 'Best Day', value: bestDay.minutes > 0 ? formatDateWithOptions(bestDay.date, { weekday: 'short' }) : '-', icon: '🌟', gradient: 'from-amber-50 to-yellow-50' },
         { label: 'Current Streak', value: `${user?.streakCount || 0}d`, icon: '🔥', gradient: 'from-orange-50 to-red-50' },
     ];
 
@@ -233,9 +233,8 @@ export default function StatsPage() {
                     <div className="space-y-4">
                         {timelineSessions.map((s, i) => {
                             const course = userCourses.find(c => c.id === s.courseId);
-                            const d = new Date(s.createdAt);
-                            const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                            const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                            const dateStr = formatDateTimeInTurkey(s.createdAt, { month: 'short', day: 'numeric' });
+                            const timeStr = formatDateTimeInTurkey(s.createdAt, { hour: '2-digit', minute: '2-digit' });
                             return (
                                 <motion.div
                                     key={s.id}

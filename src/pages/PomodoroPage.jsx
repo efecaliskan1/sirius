@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../store/appStore';
@@ -14,6 +14,14 @@ const SESSION_TYPES = [
     { key: 'shortBreak', label: 'Short Break', color: '#3BAF75' },
     { key: 'longBreak', label: 'Long Break', color: '#06B6D4' },
 ];
+const TIMER_RADIUS = 140;
+const TIMER_CENTER = 160;
+
+function getMaxMinutesForType(type) {
+    if (type === 'focus') return 120;
+    if (type === 'longBreak') return 60;
+    return 30;
+}
 
 export default function PomodoroPage() {
     const user = useAuthStore((s) => s.user);
@@ -39,12 +47,12 @@ export default function PomodoroPage() {
     });
 
     // Validate settings in case of old cache
-    const safeSettings = {
+    const safeSettings = useMemo(() => ({
         workTime: settings.workTime || settings.focusDuration || 25,
         shortBreakTime: settings.shortBreakTime || settings.shortBreakDuration || 5,
         longBreakTime: settings.longBreakTime || settings.longBreakDuration || 15,
-        roundsBeforeLongBreak: settings.roundsBeforeLongBreak || 4
-    };
+        roundsBeforeLongBreak: settings.roundsBeforeLongBreak || settings.sessionsUntilLongBreak || 4
+    }), [settings]);
 
     const [selectedCourseId, setSelectedCourseId] = useState(() => searchParams.get('courseId') || '');
     const [selectedTaskId, setSelectedTaskId] = useState(() => searchParams.get('taskId') || '');
@@ -52,7 +60,6 @@ export default function PomodoroPage() {
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [timeLeft, setTimeLeft] = useState(safeSettings.workTime * 60);
     const [round, setRound] = useState(1);
-    const [showSettings, setShowSettings] = useState(false);
     const [showCompletion, setShowCompletion] = useState(null);
     const [sessionNote, setSessionNote] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -90,30 +97,7 @@ export default function PomodoroPage() {
         localStorage.setItem('studywithme_pomodoro_settings', JSON.stringify(safeSettings));
     }, [safeSettings]);
 
-    useEffect(() => {
-        if (isRunning) {
-            intervalRef.current = setInterval(() => {
-                setTimeLeft((prev) => {
-                    if (prev <= 1) {
-                        clearInterval(intervalRef.current);
-                        handleSessionComplete();
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(intervalRef.current);
-    }, [isRunning]);
-
-    // Auto focus mode when running
-    useEffect(() => {
-        if (isRunning && sessionType === 'focus') {
-            setIsFocusMode(true);
-        }
-    }, [isRunning, sessionType]);
-
-    function handleSessionComplete() {
+    const handleSessionComplete = useCallback(() => {
         setIsRunning(false);
 
         // Play success bell
@@ -220,13 +204,55 @@ export default function PomodoroPage() {
             setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
             addToast({ type: 'success', icon: '☕', message: 'Break over. Ready to focus!' });
         }
+    }, [
+        addBadge,
+        addSession,
+        addToast,
+        badges,
+        courses,
+        round,
+        safeSettings.roundsBeforeLongBreak,
+        safeSettings.workTime,
+        selectedCourseId,
+        selectedTaskId,
+        sessions,
+        sessionType,
+        setPresence,
+        tasks,
+        updateUser,
+        user,
+    ]);
+
+    useEffect(() => {
+        if (isRunning) {
+            intervalRef.current = setInterval(() => {
+                setTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        clearInterval(intervalRef.current);
+                        handleSessionComplete();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(intervalRef.current);
+    }, [handleSessionComplete, isRunning]);
+
+    // Auto focus mode when running
+    useEffect(() => {
+        if (isRunning && sessionType === 'focus') {
+            setIsFocusMode(true);
+        }
+    }, [isRunning, sessionType]);
+
+    const handleStartOrResume = () => {
+        setShowCompletion(null);
+        setIsRunning(true);
     };
 
-    const toggleTimer = () => {
-        if (!isRunning) {
-            setShowCompletion(null);
-        }
-        setIsRunning(!isRunning);
+    const handlePause = () => {
+        setIsRunning(false);
     };
 
     const resetTimer = () => {
@@ -280,15 +306,15 @@ export default function PomodoroPage() {
         const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
 
         // Calculate angle from center (160,160)
-        const dx = svgP.x - 160;
-        const dy = svgP.y - 160;
+        const dx = svgP.x - TIMER_CENTER;
+        const dy = svgP.y - TIMER_CENTER;
         let angle = Math.atan2(dy, dx);
 
         // Transform standard canvas angle to top-zero, clockwise
         angle = angle + (Math.PI / 2);
         if (angle < 0) angle += 2 * Math.PI;
 
-        const maxMinutes = sessionType === 'focus' ? 120 : sessionType === 'longBreak' ? 60 : 30;
+        const maxMinutes = getMaxMinutesForType(sessionType);
 
         // Map angle to minutes
         let selectedMinutes = Math.round((angle / (2 * Math.PI)) * maxMinutes);
@@ -312,7 +338,32 @@ export default function PomodoroPage() {
             return newSettings;
         });
 
-    }, [isRunning, isDragging, sessionType, setSettings]);
+    }, [isRunning, isDragging, sessionType]);
+
+    const beginDrag = useCallback((event) => {
+        if (isRunning || !svgRef.current) return;
+
+        const svg = svgRef.current;
+        const pt = svg.createSVGPoint();
+        const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+        const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+        pt.x = clientX;
+        pt.y = clientY;
+        const svgPoint = pt.matrixTransform(svg.getScreenCTM().inverse());
+        const dx = svgPoint.x - TIMER_CENTER;
+        const dy = svgPoint.y - TIMER_CENTER;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (Math.abs(distance - TIMER_RADIUS) > 22) {
+            return;
+        }
+
+        if (event.cancelable) {
+            event.preventDefault();
+        }
+
+        setIsDragging(true);
+    }, [isRunning]);
 
     useEffect(() => {
         if (isDragging) {
@@ -330,7 +381,10 @@ export default function PomodoroPage() {
     }, [isDragging, handleDrag]);
 
     const totalDuration = getDuration(sessionType);
-    const progress = ((totalDuration - timeLeft) / totalDuration) * 100;
+    const selectedMinutes = Math.max(1, Math.round(timeLeft / 60));
+    const idleProgress = (selectedMinutes / getMaxMinutesForType(sessionType)) * 100;
+    const runningProgress = ((totalDuration - timeLeft) / totalDuration) * 100;
+    const progress = isRunning ? runningProgress : idleProgress;
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
 
@@ -360,14 +414,14 @@ export default function PomodoroPage() {
     const userCourses = courses.filter((c) => c.userId === user?.id);
     const courseTasks = tasks.filter((t) => t.userId === user?.id && t.courseId === selectedCourseId && !t.completed);
 
-    const circumference = 2 * Math.PI * 140;
+    const circumference = 2 * Math.PI * TIMER_RADIUS;
     // Map progress to circle offset, considering it starts from top
     const strokeDashoffset = isNaN(progress) ? 0 : circumference - (progress / 100) * circumference;
 
     // Handle positions
     const angleInRadians = ((progress / 100) * 360 - 90) * (Math.PI / 180);
-    const handleX = 160 + 140 * Math.cos(angleInRadians);
-    const handleY = 160 + 140 * Math.sin(angleInRadians);
+    const handleX = TIMER_CENTER + TIMER_RADIUS * Math.cos(angleInRadians);
+    const handleY = TIMER_CENTER + TIMER_RADIUS * Math.sin(angleInRadians);
 
     const companion = getCompanionStage(getLevelFromXP(user?.xp || 0).level);
     const isDark = (user?.theme || 'calm') === 'dark';
@@ -568,11 +622,11 @@ export default function PomodoroPage() {
             {/* Timer Circle - Interactive SVG */}
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="flex justify-center mb-8">
                 <div className="relative w-[320px] h-[320px] select-none">
-                    <svg ref={svgRef} className={`w-full h-full ${!isRunning ? 'cursor-pointer' : ''}`} viewBox="0 0 320 320" onMouseDown={() => !isRunning && setIsDragging(true)} onTouchStart={() => !isRunning && setIsDragging(true)}>
-                        <circle cx="160" cy="160" r="140" fill="none" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"} strokeWidth="12" />
+                    <svg ref={svgRef} className={`w-full h-full ${!isRunning ? 'cursor-pointer' : ''}`} viewBox="0 0 320 320" onMouseDown={beginDrag} onTouchStart={beginDrag}>
+                        <circle cx={TIMER_CENTER} cy={TIMER_CENTER} r={TIMER_RADIUS} fill="none" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"} strokeWidth="12" />
                         <motion.circle
-                            transform="rotate(-90 160 160)"
-                            cx="160" cy="160" r="140"
+                            transform={`rotate(-90 ${TIMER_CENTER} ${TIMER_CENTER})`}
+                            cx={TIMER_CENTER} cy={TIMER_CENTER} r={TIMER_RADIUS}
                             fill="none"
                             stroke={activeColor}
                             strokeWidth="12"
@@ -595,10 +649,9 @@ export default function PomodoroPage() {
                                 transform: 'translate(-50%, -50%)',
                                 touchAction: 'none'
                             }}
-                            onMouseDown={() => setIsDragging(true)}
+                            onMouseDown={beginDrag}
                             onTouchStart={(e) => {
-                                e.preventDefault();
-                                setIsDragging(true);
+                                beginDrag(e);
                             }}
                             animate={{ scale: isDragging ? 1.2 : 1 }}
                         />
@@ -606,7 +659,7 @@ export default function PomodoroPage() {
 
                     {/* Interactive Center Button */}
                     <button
-                        onClick={toggleTimer}
+                        onClick={isRunning ? handlePause : handleStartOrResume}
                         disabled={isDragging}
                         className={`absolute inset-6 rounded-full flex flex-col items-center justify-center transition-all duration-300 ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'} group`}
                     >
@@ -633,6 +686,9 @@ export default function PomodoroPage() {
 
             {/* Sub Controls */}
             <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="flex justify-center gap-3 mb-8">
+                <button onClick={isRunning ? handlePause : handleStartOrResume} className="btn-primary px-8 font-semibold rounded-2xl py-2.5 min-w-[112px] justify-center">
+                    {isRunning ? 'Pause' : 'Start'}
+                </button>
                 <button onClick={resetTimer} className="btn-secondary px-8 font-semibold rounded-2xl py-2.5">Reset</button>
             </motion.div>
 

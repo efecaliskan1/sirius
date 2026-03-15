@@ -1,16 +1,43 @@
 let idCounter = 0;
+export const TURKEY_TIMEZONE = 'Europe/Istanbul';
+export const TURKEY_LOCALE = 'tr-TR';
 
 export function generateId() {
     idCounter += 1;
     return `${Date.now()}_${idCounter}_${Math.random().toString(36).substr(2, 6)}`;
 }
 
+export function getTurkeyDateParts(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: TURKEY_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+
+    const parts = formatter.formatToParts(date);
+    return {
+        year: parts.find((part) => part.type === 'year')?.value || '1970',
+        month: parts.find((part) => part.type === 'month')?.value || '01',
+        day: parts.find((part) => part.type === 'day')?.value || '01',
+    };
+}
+
+export function getDateKeyInTurkey(date = new Date()) {
+    const { year, month, day } = getTurkeyDateParts(date);
+    return `${year}-${month}-${day}`;
+}
+
 export function getToday() {
-    return new Date().toISOString().split('T')[0];
+    return getDateKeyInTurkey();
 }
 
 export function getGreeting() {
-    const hour = new Date().getHours();
+    const hour = Number(new Intl.DateTimeFormat('en-GB', {
+        timeZone: TURKEY_TIMEZONE,
+        hour: '2-digit',
+        hour12: false,
+    }).format(new Date()));
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
@@ -18,8 +45,8 @@ export function getGreeting() {
 
 export function formatDate(dateStr) {
     if (!dateStr) return '';
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const d = typeof dateStr === 'string' && dateStr.includes('T') ? new Date(dateStr) : new Date(`${dateStr}T00:00:00`);
+    return d.toLocaleDateString(TURKEY_LOCALE, { timeZone: TURKEY_TIMEZONE, month: 'short', day: 'numeric' });
 }
 
 export function formatTime(timeStr) {
@@ -68,10 +95,30 @@ export function getWeekDates(referenceDate) {
 }
 
 export function getDayNumber(dateStr) {
-    return new Date(dateStr + 'T00:00:00').getDate();
+    return Number(formatDateWithOptions(dateStr, { day: 'numeric' }));
 }
 
 export function getMonthYear(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    return formatDateWithOptions(dateStr, { month: 'long', year: 'numeric' });
+}
+
+export function formatDateWithOptions(dateInput, options) {
+    if (!dateInput) return '';
+    const date = typeof dateInput === 'string' && dateInput.includes('T')
+        ? new Date(dateInput)
+        : new Date(`${dateInput}T00:00:00`);
+
+    return new Intl.DateTimeFormat(TURKEY_LOCALE, {
+        timeZone: TURKEY_TIMEZONE,
+        ...options,
+    }).format(date);
+}
+
+export function formatDateTimeInTurkey(dateInput, options = {}) {
+    if (!dateInput) return '';
+    const date = typeof dateInput === 'string' || dateInput instanceof Date ? new Date(dateInput) : dateInput;
+    return new Intl.DateTimeFormat(TURKEY_LOCALE, {
+        timeZone: TURKEY_TIMEZONE,
+        ...options,
+    }).format(date);
 }

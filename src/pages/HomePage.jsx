@@ -6,7 +6,7 @@ import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import Modal from '../components/UI/Modal';
 import { COURSE_COLORS, COURSE_ICONS, DEFAULT_WIDGETS } from '../utils/constants';
-import { getGreeting, getToday, formatDate, formatTime, minutesToDisplay } from '../utils/helpers';
+import { formatDateWithOptions, getGreeting, getToday, formatDate, formatTime, minutesToDisplay } from '../utils/helpers';
 import { getMotivationalMessage, getSessionStats, getLevelFromXP, getCompanionStage, getSmartSuggestion } from '../utils/rewardEngine';
 import { db } from '../firebase/config';
 import { isRecentlyActive, timestampToMillis } from '../utils/social';
@@ -37,7 +37,7 @@ export default function HomePage() {
     const isDark = (user?.theme || 'calm') === 'dark';
 
     const today = getToday();
-    const todayFormatted = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayFormatted = formatDateWithOptions(new Date(), { weekday: 'long', month: 'long', day: 'numeric' });
 
     const userCourses = courses.filter((c) => c.userId === user?.id);
     const userTasks = tasks.filter((t) => t.userId === user?.id);

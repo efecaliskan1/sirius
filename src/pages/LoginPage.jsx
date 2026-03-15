@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
 import { COMPANION_STAGES } from '../utils/constants';
+import { formatDateTimeInTurkey } from '../utils/helpers';
 import {
     getAuthErrorMessage,
     normalizeEmail,
@@ -107,7 +108,7 @@ export default function LoginPage() {
 
     const streak = returningUser?.streakCount || 0;
     const userName = returningUser?.name || '';
-    const hour = new Date().getHours();
+    const hour = Number(formatDateTimeInTurkey(new Date(), { hour: '2-digit', hour12: false }));
     const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
     return (
