@@ -7,6 +7,7 @@ import { DEFAULT_POMODORO_SETTINGS, COINS_PER_SESSION, XP_PER_SESSION, AMBIENT_S
 import { checkNewBadges, getSessionStats, getLevelFromXP, getCompanionStage } from '../utils/rewardEngine';
 import { minutesToDisplay } from '../utils/helpers';
 import { startAmbientSound, stopAmbientSound } from '../utils/ambientSounds';
+import { getWeekKey } from '../utils/social';
 
 const SESSION_TYPES = [
     { key: 'focus', label: 'Focus', color: '#4F6EF7' },
@@ -17,6 +18,7 @@ const SESSION_TYPES = [
 export default function PomodoroPage() {
     const user = useAuthStore((s) => s.user);
     const updateUser = useAuthStore((s) => s.updateUser);
+    const setPresence = useAuthStore((s) => s.setPresence);
     const courses = useAppStore((s) => s.courses);
     const tasks = useAppStore((s) => s.tasks);
     const sessions = useAppStore((s) => s.sessions);
@@ -153,7 +155,31 @@ export default function PomodoroPage() {
                 }
             }
 
-            updateUser({ coinBalance: newCoins, xp: newXP, streakCount: newStreak, lastActiveDate: today });
+            const weekKey = getWeekKey();
+            const weeklyFocusMinutes = user?.weeklyFocusWeekKey === weekKey
+                ? (user?.weeklyFocusMinutes || 0) + actualMinutes
+                : actualMinutes;
+
+            updateUser({
+                coinBalance: newCoins,
+                xp: newXP,
+                streakCount: newStreak,
+                lastActiveDate: today,
+                totalFocusMinutes: (user?.totalFocusMinutes || 0) + actualMinutes,
+                weeklyFocusMinutes,
+                weeklyFocusWeekKey: weekKey,
+            });
+
+            setPresence({
+                focusingNow: false,
+                currentSessionTitle: '',
+                weeklyFocusMinutes,
+                weeklyFocusWeekKey: weekKey,
+                totalFocusMinutes: (user?.totalFocusMinutes || 0) + actualMinutes,
+                xp: newXP,
+                streakCount: newStreak,
+                lastActiveDate: today,
+            }).catch((error) => console.error('Failed to update study room presence', error));
 
             // Show completion screen
             setShowCompletion({
@@ -191,6 +217,7 @@ export default function PomodoroPage() {
         } else {
             setSessionType('focus');
             setIsFocusMode(false);
+            setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
             addToast({ type: 'success', icon: '☕', message: 'Break over. Ready to focus!' });
         }
     };
@@ -208,11 +235,34 @@ export default function PomodoroPage() {
         clearInterval(intervalRef.current);
         setTimeLeft(getDuration(sessionType));
         setShowCompletion(null);
+        setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
     };
 
     const exitFocusMode = () => {
         setIsFocusMode(false);
+        if (!isRunning) {
+            setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
+        }
     };
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        if (isRunning && sessionType === 'focus') {
+            const course = courses.find((item) => item.id === selectedCourseId);
+            const sessionTitle = course?.courseName || 'Focus Session';
+            setPresence({
+                focusingNow: true,
+                currentSessionTitle: sessionTitle,
+            }).catch((error) => console.error('Failed to mark user as focusing', error));
+            return;
+        }
+
+        setPresence({
+            focusingNow: false,
+            currentSessionTitle: '',
+        }).catch(() => { });
+    }, [user?.id, isRunning, sessionType, selectedCourseId, courses, setPresence]);
 
     // Circular Slider Drag Logic
     const handleDrag = useCallback((e) => {

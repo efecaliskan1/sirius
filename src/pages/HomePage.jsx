@@ -1,12 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import Modal from '../components/UI/Modal';
 import { COURSE_COLORS, COURSE_ICONS, DEFAULT_WIDGETS } from '../utils/constants';
 import { getGreeting, getToday, formatDate, formatTime, minutesToDisplay } from '../utils/helpers';
 import { getMotivationalMessage, getSessionStats, getLevelFromXP, getCompanionStage, getSmartSuggestion } from '../utils/rewardEngine';
+import { db } from '../firebase/config';
+import { isRecentlyActive, timestampToMillis } from '../utils/social';
 
 export default function HomePage() {
     const user = useAuthStore((s) => s.user);
@@ -29,6 +32,7 @@ export default function HomePage() {
     const [editingCourse, setEditingCourse] = useState(null);
     const [courseForm, setCourseForm] = useState({ courseName: '', color: COURSE_COLORS[0], icon: '📚' });
     const [goalInput, setGoalInput] = useState('');
+    const [studyRoomUsers, setStudyRoomUsers] = useState([]);
 
     const isDark = (user?.theme || 'calm') === 'dark';
 
@@ -69,6 +73,40 @@ export default function HomePage() {
 
     const suggestion = useMemo(() => getSmartSuggestion(userCourses, courseTopics, userSessions, today), [userCourses, courseTopics, userSessions, today]);
 
+    useEffect(() => {
+        const activeUsersQuery = query(
+            collection(db, 'publicProfiles'),
+            orderBy('lastSeenAt', 'desc'),
+            limit(24)
+        );
+
+        const unsubscribe = onSnapshot(
+            activeUsersQuery,
+            (snapshot) => {
+                const users = snapshot.docs
+                    .map((docSnapshot) => ({
+                        id: docSnapshot.id,
+                        ...docSnapshot.data(),
+                    }))
+                    .filter((member) => isRecentlyActive(member.lastSeenAt))
+                    .sort((a, b) => {
+                        if (Boolean(b.focusingNow) !== Boolean(a.focusingNow)) {
+                            return Number(Boolean(b.focusingNow)) - Number(Boolean(a.focusingNow));
+                        }
+                        return timestampToMillis(b.lastSeenAt) - timestampToMillis(a.lastSeenAt);
+                    });
+
+                setStudyRoomUsers(users);
+            },
+            (error) => {
+                console.error('Failed to load study room presence', error);
+                setStudyRoomUsers([]);
+            }
+        );
+
+        return unsubscribe;
+    }, []);
+
     const handleProtectStreak = () => {
         if (user?.coinBalance >= 50) {
             updateUser({ coinBalance: user.coinBalance - 50, streakProtected: true });
@@ -93,6 +131,8 @@ export default function HomePage() {
     };
 
     const getCourse = (courseId) => userCourses.find((c) => c.id === courseId);
+    const focusingUsers = studyRoomUsers.filter((member) => member.focusingNow);
+    const displayedStudyRoomUsers = focusingUsers.length > 0 ? focusingUsers.slice(0, 6) : studyRoomUsers.slice(0, 6);
 
     const openAddCourseModal = () => {
         setEditingCourse(null);
@@ -455,22 +495,44 @@ export default function HomePage() {
                             <div className="flex flex-col gap-3">
                                 <div className="flex items-center gap-3">
                                     <div className="text-[28px] font-extrabold tracking-tight leading-none" style={{ color: 'var(--theme-text, #111827)' }}>
-                                        1,248
+                                        {focusingUsers.length || studyRoomUsers.length}
                                     </div>
                                     <div className="text-[13px] font-medium leading-tight" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                        students<br />focusing now
+                                        {focusingUsers.length > 0 ? (
+                                            <>members<br />focusing now</>
+                                        ) : (
+                                            <>active members<br />online now</>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                    {['🇺🇸', '🇬🇧', '🇯🇵', '🇹🇷', '🇧🇷', '🇩🇪'].map((flag, idx) => (
-                                        <div key={idx} className="w-6 h-6 rounded-md bg-white/50 flex items-center justify-center text-[14px] shadow-sm border border-black/5 overflow-hidden" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white' }}>
-                                            {flag}
-                                        </div>
-                                    ))}
-                                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#94A3B8' : '#64748B' }}>
-                                        +5k
+                                {displayedStudyRoomUsers.length > 0 ? (
+                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                        {displayedStudyRoomUsers.map((member) => (
+                                            <div
+                                                key={member.id}
+                                                className="h-7 px-2.5 rounded-full bg-white/50 flex items-center justify-center text-[11px] font-semibold shadow-sm border border-black/5 overflow-hidden"
+                                                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white', color: 'var(--theme-text, #111827)' }}
+                                            >
+                                                {(member.displayName || 'Student').split(' ')[0]}
+                                            </div>
+                                        ))}
+                                        {studyRoomUsers.length > displayedStudyRoomUsers.length && (
+                                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', color: isDark ? '#94A3B8' : '#64748B' }}>
+                                                +{studyRoomUsers.length - displayedStudyRoomUsers.length}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="rounded-xl px-3 py-2 text-[12px] font-medium" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.6)', color: 'var(--theme-text-muted, #94A3B8)' }}>
+                                        Nobody is active yet. The room fills automatically as signed-in members use Sirius.
+                                    </div>
+                                )}
+                                {displayedStudyRoomUsers.length > 0 && (
+                                    <div className="text-[12px] leading-relaxed" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>
+                                        {displayedStudyRoomUsers[0].displayName || 'A member'}
+                                        {displayedStudyRoomUsers[0].focusingNow ? ` is in ${displayedStudyRoomUsers[0].currentSessionTitle || 'a focus session'}.` : ' is online right now.'}
+                                    </div>
+                                )}
                                 <button
                                     onClick={() => setFocusMode(true, { title: 'Global Study Session' })}
                                     className={`mt-2 w-full py-2.5 rounded-xl text-[13px] font-bold transition-colors shadow-sm`}

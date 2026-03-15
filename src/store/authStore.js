@@ -16,6 +16,7 @@ import {
     doc, 
     setDoc, 
     getDoc, 
+    serverTimestamp,
     updateDoc 
 } from 'firebase/firestore';
 import {
@@ -24,8 +25,11 @@ import {
     normalizeEmail,
     normalizeName,
 } from '../utils/auth';
+import { getDisplayName, getWeekKey } from '../utils/social';
 
 const STORAGE_KEY = 'studywithme_auth';
+let presenceIntervalId = null;
+let visibilityCleanup = null;
 
 function saveAuthToLocal(user) {
     if (user) {
@@ -45,17 +49,113 @@ function buildDefaultUser(firebaseUser) {
         streakCount: 0,
         coinBalance: 0,
         xp: 0,
+        totalFocusMinutes: 0,
+        weeklyFocusMinutes: 0,
+        weeklyFocusWeekKey: getWeekKey(),
         lastActiveDate: '',
+        lastSeenAt: null,
         weeklyGoalMinutes: 900,
         dashboardWidgets: null,
         theme: 'calm',
     };
 }
 
+function createPublicProfile(user) {
+    return {
+        displayName: getDisplayName(user),
+        theme: user?.theme || 'calm',
+        photoURL: user?.profilePhoto || '',
+        streakCount: user?.streakCount || 0,
+        xp: user?.xp || 0,
+        totalFocusMinutes: user?.totalFocusMinutes || 0,
+        weeklyFocusMinutes: user?.weeklyFocusMinutes || 0,
+        weeklyFocusWeekKey: user?.weeklyFocusWeekKey || getWeekKey(),
+        lastActiveDate: user?.lastActiveDate || '',
+        lastSeenAt: serverTimestamp(),
+        focusingNow: false,
+        currentSessionTitle: '',
+        updatedAt: serverTimestamp(),
+    };
+}
+
+function clearPresenceTracking() {
+    if (presenceIntervalId) {
+        window.clearInterval(presenceIntervalId);
+        presenceIntervalId = null;
+    }
+    if (visibilityCleanup) {
+        visibilityCleanup();
+        visibilityCleanup = null;
+    }
+}
+
 const useAuthStore = create((set, get) => ({
     user: JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'),
     isAuthenticated: !!localStorage.getItem(STORAGE_KEY),
     isLoading: true,
+
+    syncPublicProfile: async (userData, extra = {}) => {
+        if (!userData?.id) return;
+
+        await setDoc(
+            doc(db, 'publicProfiles', userData.id),
+            {
+                userId: userData.id,
+                ...createPublicProfile(userData),
+                ...extra,
+            },
+            { merge: true }
+        );
+    },
+
+    setPresence: async (updates = {}) => {
+        const currentUser = get().user;
+        if (!currentUser?.id) return;
+
+        await get().syncPublicProfile(currentUser, {
+            lastSeenAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            ...updates,
+        });
+    },
+
+    startPresenceTracking: () => {
+        const currentUser = get().user;
+        if (!currentUser?.id || typeof window === 'undefined') return;
+
+        clearPresenceTracking();
+        get().setPresence({ focusingNow: false }).catch((error) => {
+            console.error('Failed to initialize presence', error);
+        });
+
+        presenceIntervalId = window.setInterval(() => {
+            if (!document.hidden) {
+                get().setPresence().catch((error) => {
+                    console.error('Presence heartbeat failed', error);
+                });
+            }
+        }, 60000);
+
+        const handleVisibility = () => {
+            get().setPresence({ focusingNow: document.hidden ? false : undefined }).catch((error) => {
+                console.error('Visibility presence update failed', error);
+            });
+        };
+
+        document.addEventListener('visibilitychange', handleVisibility);
+        visibilityCleanup = () => document.removeEventListener('visibilitychange', handleVisibility);
+    },
+
+    stopPresenceTracking: async () => {
+        clearPresenceTracking();
+        const currentUser = get().user;
+        if (!currentUser?.id) return;
+        await get().syncPublicProfile(currentUser, {
+            focusingNow: false,
+            currentSessionTitle: '',
+            updatedAt: serverTimestamp(),
+        });
+    },
 
     ensureUserDocument: async (firebaseUser) => {
         const userRef = doc(db, 'users', firebaseUser.uid);
@@ -73,6 +173,7 @@ const useAuthStore = create((set, get) => ({
 
         const newUser = buildDefaultUser(firebaseUser);
         await setDoc(userRef, newUser);
+        await get().syncPublicProfile(newUser);
         return newUser;
     },
 
@@ -95,7 +196,9 @@ const useAuthStore = create((set, get) => ({
                     
                     saveAuthToLocal(finalUser);
                     set({ user: finalUser, isAuthenticated: true, isLoading: false });
+                    get().startPresenceTracking();
                 } else {
+                    clearPresenceTracking();
                     saveAuthToLocal(null);
                     set({ user: null, isAuthenticated: false, isLoading: false });
                 }
@@ -123,6 +226,8 @@ const useAuthStore = create((set, get) => ({
         
         saveAuthToLocal(finalUser);
         set({ user: finalUser, isAuthenticated: true });
+        await get().syncPublicProfile(finalUser);
+        get().startPresenceTracking();
         return finalUser;
     },
 
@@ -135,6 +240,8 @@ const useAuthStore = create((set, get) => ({
             const finalUser = await get().ensureUserDocument(result.user);
             saveAuthToLocal(finalUser);
             set({ user: finalUser, isAuthenticated: true });
+            await get().syncPublicProfile(finalUser);
+            get().startPresenceTracking();
             return { user: finalUser, redirecting: false };
         } catch (error) {
             if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
@@ -160,6 +267,7 @@ const useAuthStore = create((set, get) => ({
             updateProfile(result.user, { displayName: cleanName }),
             sendEmailVerification(result.user),
             setDoc(doc(db, 'users', result.user.uid), newUser),
+            get().syncPublicProfile(newUser),
         ]);
 
         await signOut(auth);
@@ -169,6 +277,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     logout: async () => {
+        await get().stopPresenceTracking();
         await signOut(auth);
         saveAuthToLocal(null);
         set({ user: null, isAuthenticated: false });
@@ -184,6 +293,7 @@ const useAuthStore = create((set, get) => ({
 
         if (auth.currentUser) {
             await updateDoc(doc(db, 'users', currentUser.id), updates);
+            await get().syncPublicProfile(updatedUser);
         }
     },
 }));
