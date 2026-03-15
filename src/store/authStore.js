@@ -41,29 +41,39 @@ const useAuthStore = create((set, get) => ({
     // Initialize listener
     init: () => {
         onAuthStateChanged(auth, async (firebaseUser) => {
-            if (firebaseUser) {
-                if (isPasswordAuthUser(firebaseUser) && !firebaseUser.emailVerified) {
+            try {
+                if (firebaseUser) {
+                    if (isPasswordAuthUser(firebaseUser) && !firebaseUser.emailVerified) {
+                        saveAuthToLocal(null);
+                        set({ user: null, isAuthenticated: false, isLoading: false });
+                        return;
+                    }
+
+                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                    const userData = userDoc.exists() ? userDoc.data() : null;
+                    
+                    const finalUser = {
+                        id: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        name: firebaseUser.displayName || 'Student',
+                        ...userData
+                    };
+                    
+                    saveAuthToLocal(finalUser);
+                    set({ user: finalUser, isAuthenticated: true, isLoading: false });
+                } else {
                     saveAuthToLocal(null);
                     set({ user: null, isAuthenticated: false, isLoading: false });
-                    return;
                 }
-
-                const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-                const userData = userDoc.exists() ? userDoc.data() : null;
-                
-                const finalUser = {
-                    id: firebaseUser.uid,
-                    email: firebaseUser.email,
-                    name: firebaseUser.displayName || 'Student',
-                    ...userData
-                };
-                
-                saveAuthToLocal(finalUser);
-                set({ user: finalUser, isAuthenticated: true, isLoading: false });
-            } else {
+            } catch (error) {
+                console.error('Failed to initialize auth state', error);
                 saveAuthToLocal(null);
                 set({ user: null, isAuthenticated: false, isLoading: false });
             }
+        }, (error) => {
+            console.error('Auth state listener failed', error);
+            saveAuthToLocal(null);
+            set({ user: null, isAuthenticated: false, isLoading: false });
         });
     },
 
