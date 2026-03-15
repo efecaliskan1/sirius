@@ -250,16 +250,16 @@ export const BLOCK_TYPES = [
 ];
 
 export const COMPANION_STAGES = [
-    { minLevel: 0, name: 'Kozmik Boşluk', emoji: '🌌', description: 'Odaklandıkça aydınlanmayı bekleyen sessiz ve karanlık bir bölge.' },
-    { minLevel: 2, name: 'Nebula (Toz Bulutu)', emoji: '🌫️', description: 'Fikirlerin yavaş yavaş toparlandığı renkli bir kozmik toz havuzu.' },
-    { minLevel: 4, name: 'Protıldız', emoji: '✨', description: 'Tozların merkezde sıkışarak enerji ve ışık vermeye başladığı ilk an.' },
-    { minLevel: 6, name: 'Doğan Yıldız', emoji: '⭐', description: 'Odaklanmanın gücüyle merkeze yerleşen, sistemi aydınlatan güçlü bir yıldız.' },
-    { minLevel: 8, name: 'İlk Yörünge', emoji: '💫', description: 'Yıldızın çekim kuvvetiyle etrafında oluşmaya başlayan devasa halkalar.' },
-    { minLevel: 10, name: 'Kayalık Gezegen', emoji: '🌑', description: 'Bilgilerin ilk defa depolanıp kök saldığı soğuk ama sağlam bir kütüphane rafı.' },
-    { minLevel: 12, name: 'Sulu Küre', emoji: '🌊', description: 'Azim ve istikrar sayesinde atmosferin ve hayat belirtilerinin yeşerdiği yaşam alanı.' },
-    { minLevel: 15, name: 'Kozmik Medeniyet', emoji: '🏙️', description: 'Büyük hedeflere yaklaştıkça uzaydan bile görünen devasa bilgi şehirleri.' },
-    { minLevel: 18, name: 'Takımyıldızı', emoji: '☄️', description: 'Onlarca başarılı seansın sonucunda farklı sistemlerin birbirine bağlandığı kozmik ağ.' },
-    { minLevel: 20, name: 'Kozmik Kütüphane', emoji: '👁️‍🗨️', description: 'Her sistemin bir dersi, her gezegenin bir konutu sakladığı sonsuz bilgi evreni.' }
+    { minLevel: 0, name: 'Cosmic Void', emoji: '🌌', description: 'A quiet, dark region waiting to light up as you focus.' },
+    { minLevel: 2, name: 'Nebula', emoji: '🌫️', description: 'A colorful cloud where scattered ideas begin to gather.' },
+    { minLevel: 4, name: 'Protostar', emoji: '✨', description: 'The first spark as pressure builds and your momentum starts glowing.' },
+    { minLevel: 6, name: 'Rising Star', emoji: '⭐', description: 'A bright core forming through consistency and sustained attention.' },
+    { minLevel: 8, name: 'First Orbit', emoji: '💫', description: 'Strong focus begins shaping stable rings around your study system.' },
+    { minLevel: 10, name: 'Rocky Planet', emoji: '🌑', description: 'Knowledge starts settling into a solid, dependable foundation.' },
+    { minLevel: 12, name: 'Blue World', emoji: '🌊', description: 'Steady effort creates an environment where real growth can thrive.' },
+    { minLevel: 15, name: 'Cosmic Civilization', emoji: '🏙️', description: 'Ambition expands into whole cities of progress visible from afar.' },
+    { minLevel: 18, name: 'Constellation', emoji: '☄️', description: 'Many successful sessions connect into a larger map of mastery.' },
+    { minLevel: 20, name: 'Cosmic Library', emoji: '👁️‍🗨️', description: 'An endless universe where every system stores a lesson you have earned.' }
 ];
 
 export const BADGE_DEFINITIONS = [
@@ -300,8 +300,8 @@ export const BADGE_DEFINITIONS = [
     },
     {
         badgeKey: 'night_owl',
-        title: 'Gece Kuşu',
-        description: 'Gece geç saatlerde verimli çalışma',
+        title: 'Night Owl',
+        description: 'Do your best work late at night',
         icon: '🦉',
         condition: (stats) => {
             const hour = new Date().getHours();
@@ -310,29 +310,29 @@ export const BADGE_DEFINITIONS = [
     },
     {
         badgeKey: 'kara_delik',
-        title: 'Kara Delik',
-        description: 'Zamanı bük! Hiç mola vermeden tam 3 saat (180 dk) odaklanan efsaneler için.',
+        title: 'Black Hole',
+        description: 'Bend time with an epic 3-hour focus session.',
         icon: '🕳️',
         condition: (stats) => stats.longestSessionMinutes >= 180
     },
     {
         badgeKey: 'supernova',
-        title: 'Süpernova',
-        description: 'Bir projeyi bitirmenin (büyük bir Check box) yaydığı sarsıcı kozmik patlama!',
+        title: 'Supernova',
+        description: 'Finish a major project and trigger a massive burst of progress.',
         icon: '💥',
         condition: (stats) => false // Triggered when fully completing major tasks/projects
     },
     {
         badgeKey: 'deep_focus',
-        title: 'Derin Odak',
-        description: '100 saatlik kesintisiz çalışma vizyonu (Toplam 100 Saat)',
+        title: 'Deep Focus',
+        description: 'Reach 100 total hours of focused study time.',
         icon: '🎯',
         condition: (stats) => stats.totalMinutes >= 6000
     },
     {
         badgeKey: 'serial_killer',
-        title: 'Seri Katil',
-        description: 'Acımasız ve istikrarlı bir çalışma serisi yakala',
+        title: 'Relentless',
+        description: 'Build a ruthless, steady study streak.',
         icon: '⚔️',
         condition: (stats) => stats.streakCount >= 5 || stats.streak >= 5
     }

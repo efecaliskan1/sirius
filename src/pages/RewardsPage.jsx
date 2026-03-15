@@ -173,7 +173,7 @@ export default function RewardsPage() {
                         <div className="text-[10px] text-blue-700 mt-1">Badges Earned</div>
                     </div>
                     <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl">
-                        <div className="text-2xl font-bold text-purple-600">Lvl {levelInfo.level}</div>
+                        <div className="text-2xl font-bold text-purple-600">Level {levelInfo.level}</div>
                         <div className="text-[10px] text-purple-700 mt-1">Current Level</div>
                     </div>
                 </div>

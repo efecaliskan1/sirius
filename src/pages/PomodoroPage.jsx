@@ -194,13 +194,16 @@ export default function PomodoroPage() {
             if (round >= safeSettings.roundsBeforeLongBreak) {
                 setSessionType('longBreak');
                 setRound(1);
+                setTimeLeft(getDuration('longBreak'));
             } else {
                 setSessionType('shortBreak');
                 setRound((r) => r + 1);
+                setTimeLeft(getDuration('shortBreak'));
             }
         } else {
             setSessionType('focus');
             setIsFocusMode(false);
+            setTimeLeft(getDuration('focus'));
             setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
             addToast({ type: 'success', icon: '☕', message: 'Break over. Ready to focus!' });
         }
@@ -259,7 +262,9 @@ export default function PomodoroPage() {
         setIsRunning(false);
         setIsFocusMode(false);
         clearInterval(intervalRef.current);
-        setTimeLeft(getDuration(sessionType));
+        setRound(1);
+        setSessionType('focus');
+        setTimeLeft(getDuration('focus'));
         setShowCompletion(null);
         setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
     };
