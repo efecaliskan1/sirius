@@ -10,15 +10,6 @@ import {
     validateLoginForm,
 } from '../utils/auth';
 
-const STUDY_QUOTES = [
-    { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
-    { text: "Study without desire spoils the memory.", author: "Leonardo da Vinci" },
-    { text: "The beautiful thing about learning is nobody can take it away from you.", author: "B.B. King" },
-    { text: "Education is the most powerful weapon you can use to change the world.", author: "Nelson Mandela" },
-    { text: "The mind is not a vessel to be filled, but a fire to be kindled.", author: "Plutarch" },
-    { text: "Small daily improvements are the key to staggering long-term results.", author: "Robin Sharma" },
-];
-
 function getReturningUserInfo() {
     try {
         // First check active session
@@ -48,8 +39,6 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     const returningUser = useMemo(() => getReturningUserInfo(), []);
-    const quote = useMemo(() => STUDY_QUOTES[Math.floor(Math.random() * STUDY_QUOTES.length)], []);
-
     // Determine companion stage based on returning user's XP
     const companionStage = useMemo(() => {
         if (!returningUser) return COMPANION_STAGES[0];

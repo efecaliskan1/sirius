@@ -5,7 +5,7 @@ import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestor
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import Modal from '../components/UI/Modal';
-import { COURSE_COLORS, COURSE_ICONS, DEFAULT_WIDGETS } from '../utils/constants';
+import { COURSE_COLORS, COURSE_ICONS, DEFAULT_WIDGETS, PHILOSOPHER_QUOTES } from '../utils/constants';
 import { formatDateWithOptions, getGreeting, getToday, formatDate, formatTime, minutesToDisplay } from '../utils/helpers';
 import { getMotivationalMessage, getSessionStats, getLevelFromXP, getCompanionStage, getSmartSuggestion } from '../utils/rewardEngine';
 import { db } from '../firebase/config';
@@ -72,6 +72,13 @@ export default function HomePage() {
     const companion = getCompanionStage(levelInfo.level);
 
     const suggestion = useMemo(() => getSmartSuggestion(userCourses, courseTopics, userSessions, today), [userCourses, courseTopics, userSessions, today]);
+    const dailyQuote = useMemo(() => {
+        const quoteIndex = today
+            .split('')
+            .reduce((sum, char, index) => sum + char.charCodeAt(0) * (index + 1), 0) % PHILOSOPHER_QUOTES.length;
+
+        return PHILOSOPHER_QUOTES[quoteIndex];
+    }, [today]);
 
     useEffect(() => {
         const activeUsersQuery = query(
@@ -274,7 +281,9 @@ export default function HomePage() {
                         <div className="card relative overflow-hidden flex flex-col justify-center h-full">
                             <div className={`absolute top-0 left-0 w-2 h-full rounded-l-2xl ${isDark ? 'bg-gradient-to-b from-indigo-500/60 to-purple-500/60' : 'bg-gradient-to-b from-indigo-300 to-purple-300'}`}></div>
                             <h3 className="text-[11px] font-bold uppercase tracking-wider mb-2 pl-3" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>Quote of the Day</h3>
-                            <p className="italic font-medium leading-relaxed pl-3" style={{ color: 'var(--theme-text-secondary, #64748B)' }}>"The secret of getting ahead is getting started." — Mark Twain</p>
+                            <p className="italic font-medium leading-relaxed pl-3" style={{ color: 'var(--theme-text-secondary, #64748B)' }}>
+                                "{dailyQuote.text}" — {dailyQuote.author}
+                            </p>
                         </div>
 
                         {/* Smart Suggestion */}

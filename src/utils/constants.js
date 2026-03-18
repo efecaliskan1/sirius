@@ -133,6 +133,17 @@ export const DEFAULT_WIDGETS = [
     { id: 'streak-status', name: 'Rewards Status', enabled: true }
 ];
 
+export const PHILOSOPHER_QUOTES = [
+    { text: 'The unexamined life is not worth living.', author: 'Socrates' },
+    { text: 'Wonder is the feeling of the philosopher, and philosophy begins in wonder.', author: 'Plato' },
+    { text: 'Happiness depends upon ourselves.', author: 'Aristotle' },
+    { text: 'No man is free who is not master of himself.', author: 'Epictetus' },
+    { text: 'The happiness of your life depends upon the quality of your thoughts.', author: 'Marcus Aurelius' },
+    { text: 'I think, therefore I am.', author: 'Rene Descartes' },
+    { text: 'He who has a why to live can bear almost any how.', author: 'Friedrich Nietzsche' },
+    { text: 'He who knows others is wise; he who knows himself is enlightened.', author: 'Lao Tzu' }
+];
+
 export const COINS_PER_SESSION = 10;
 export const XP_PER_SESSION = 50;
 export const XP_PER_TASK = 20;
