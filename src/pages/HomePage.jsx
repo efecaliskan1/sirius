@@ -5,6 +5,7 @@ import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestor
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import Modal from '../components/UI/Modal';
+import YourSkyScene from '../components/rewards/YourSkyScene';
 import { COURSE_COLORS, COURSE_ICONS, DEFAULT_WIDGETS, PHILOSOPHER_QUOTES } from '../utils/constants';
 import { formatDateWithOptions, getGreeting, getToday, formatDate, formatTime, minutesToDisplay } from '../utils/helpers';
 import { getMotivationalMessage, getSessionStats, getLevelFromXP, getCompanionStage, getSmartSuggestion } from '../utils/rewardEngine';
@@ -608,56 +609,18 @@ export default function HomePage() {
                         <div className="card">
                             <div className="flex items-center justify-between mb-5">
                                 <h3 className="text-[16px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    ✨ Rewards Status
+                                    ✨ Your Sky
                                 </h3>
                                 <Link to="/rewards" className="text-[13px] text-blue-600 hover:text-blue-700 font-semibold transition-colors">Details →</Link>
                             </div>
 
-                            <div className="flex flex-col gap-4">
-                                <div className={`flex items-center justify-between p-4 rounded-2xl dark-sub-card ${isDark
-                                    ? ''
-                                    : 'bg-slate-50 border border-slate-100'
-                                    }`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${isDark ? 'bg-amber-500/10' : 'bg-amber-50 text-amber-500 shadow-inner'}`}>
-                                            🪙
-                                        </div>
-                                        <div>
-                                            <div className="text-[12px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>Coins</div>
-                                            <div className="text-[18px] font-bold leading-none" style={{ color: 'var(--theme-text, #111827)' }}>{user?.coinBalance || 0}</div>
-                                        </div>
-                                    </div>
-                                    <div className={`w-px h-10 mx-2 ${isDark ? 'bg-white/6' : 'bg-slate-200'}`}></div>
-                                    <div className="flex items-center gap-3 pr-2">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${isDark ? 'bg-orange-500/10' : 'bg-orange-50 text-orange-500 shadow-inner'}`}>
-                                            🔥
-                                        </div>
-                                        <div>
-                                            <div className="text-[12px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>Streak</div>
-                                            <div className="text-[18px] font-bold leading-none" style={{ color: 'var(--theme-text, #111827)' }}>{user?.streakCount || 0}d</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className={`flex items-center justify-between p-3 px-4 rounded-2xl reward-level-card ${isDark
-                                    ? ''
-                                    : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-emerald-100/50'
-                                    }`}>
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-2xl drop-shadow-sm">{companion.emoji}</div>
-                                        <div>
-                                            <div className="text-[13px] font-bold leading-tight" style={{ color: 'var(--theme-text, #334155)' }}>Level {levelInfo.level}</div>
-                                            <div className="text-[12px] font-medium mt-0.5" style={{ color: isDark ? '#818CF8' : '#047857' }}>{companion.name}</div>
-                                        </div>
-                                    </div>
-                                    <div className="text-right w-20">
-                                        <div className="text-[12px] font-bold text-blue-600 mb-1.5">{Math.round(levelInfo.progress)}%</div>
-                                        <div className={`w-full h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-white/6' : 'bg-blue-100 shadow-inner'}`}>
-                                            <motion.div className="bg-blue-500 h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${levelInfo.progress}%` }}></motion.div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <YourSkyScene
+                                compact
+                                sessionsCompleted={stats.totalSessions}
+                                streak={user?.streakCount || 0}
+                                totalMinutes={stats.totalMinutes}
+                                className="mb-4"
+                            />
 
                             {/* Streak Protection */}
                             {user?.streakCount > 0 && !user?.streakProtected && (

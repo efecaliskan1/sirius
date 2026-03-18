@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
+import YourSkyScene from '../components/rewards/YourSkyScene';
 import { DEFAULT_POMODORO_SETTINGS, COINS_PER_SESSION, XP_PER_SESSION, AMBIENT_SOUNDS } from '../utils/constants';
 import { checkNewBadges, getSessionStats, getLevelFromXP, getCompanionStage } from '../utils/rewardEngine';
 import { minutesToDisplay } from '../utils/helpers';
@@ -464,6 +465,10 @@ export default function PomodoroPage() {
     const currentType = SESSION_TYPES.find((t) => t.key === sessionType);
     const userCourses = courses.filter((c) => c.userId === user?.id);
     const courseTasks = tasks.filter((t) => t.userId === user?.id && t.courseId === selectedCourseId && !t.completed);
+    const completedSessionsCount = useMemo(
+        () => sessions.filter((session) => session.userId === user?.id && session.completed).length,
+        [sessions, user?.id]
+    );
 
     const circumference = 2 * Math.PI * TIMER_RADIUS;
     // Map progress to circle offset, considering it starts from top
@@ -743,7 +748,16 @@ export default function PomodoroPage() {
                 <button onClick={resetTimer} className="btn-secondary px-8 font-semibold rounded-2xl py-2.5">Reset</button>
             </motion.div>
 
-
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mb-6">
+                <YourSkyScene
+                    compact
+                    sessionsCompleted={completedSessionsCount}
+                    streak={user?.streakCount || 0}
+                    totalMinutes={user?.totalFocusMinutes || 0}
+                    focusProgress={isRunning && sessionType === 'focus' ? runningProgress : 0}
+                    className="card mb-6"
+                />
+            </motion.div>
 
             {/* Course/Task Link */}
             <div className="card max-w-md mx-auto mb-4">

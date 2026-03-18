@@ -83,20 +83,20 @@ export default function StatsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
-                className="card mb-6"
+                className="card mb-6 relative overflow-visible"
             >
                 <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--theme-text, #1e293b)' }}>Study Activity</h3>
-                <div className="overflow-x-auto overflow-y-visible pb-24">
-                    <div className="flex gap-[3px] min-w-fit pt-6">
+                <div className="relative overflow-x-auto overflow-y-visible pt-16 pb-10">
+                    <div className="flex gap-[3px] min-w-fit">
                         {heatmapWeeks.map((week, wi) => (
-                            <div key={wi} className="flex flex-col gap-[3px] relative z-0">
+                            <div key={wi} className="flex flex-col gap-[3px] relative">
                                 {week.map((day) => (
                                     <div
                                         key={day.date}
-                                        className="heatmap-cell relative group z-0 hover:z-20"
+                                        className="heatmap-cell relative group z-0 hover:z-40"
                                         style={{ backgroundColor: HEATMAP_COLORS[day.level] }}
                                     >
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max bg-slate-800 text-white text-[11px] py-2 px-3 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-30 pointer-events-none shadow-lg">
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-slate-800 text-white text-[11px] py-2 px-3 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-xl">
                                             <div className="font-semibold mb-1 border-b border-slate-700 pb-1">{day.date}</div>
                                             <div className="flex justify-between gap-4 mb-0.5">
                                                 <span className="text-slate-400">Time:</span>
@@ -111,7 +111,7 @@ export default function StatsPage() {
                                                     Main: {userCourses.find(c => c.id === day.mainCourseId)?.courseName}
                                                 </div>
                                             )}
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-b-slate-800"></div>
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-800"></div>
                                         </div>
                                     </div>
                                 ))}
