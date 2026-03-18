@@ -95,17 +95,20 @@ export default function SignupPage() {
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-                        className="flex items-center gap-2.5 mb-6"
+                        className="flex items-center gap-3 mb-6"
                     >
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center text-white text-lg shadow-lg shadow-emerald-200/50">
-                            🎓
+                        <div className="w-[68px] h-[68px] rounded-[26px] bg-gradient-to-br from-white via-sky-50 to-blue-100/80 p-1.5 shadow-[0_18px_40px_rgba(59,130,246,0.18)] ring-1 ring-white/90">
+                            <img src="/sirius-logo.svg" alt="Sirius logo" className="w-full h-full object-contain scale-[1.08]" />
                         </div>
-                        <span className="text-lg font-bold text-[#111827] tracking-tight">StudywithME</span>
+                        <div>
+                            <span className="block text-[22px] font-bold text-[#111827] tracking-tight leading-none">Sirius</span>
+                            <span className="block mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-500/70">Study smarter</span>
+                        </div>
                     </motion.div>
 
                     <h1 className="text-2xl font-bold text-[#111827] leading-tight">
                         Create your<br />
-                        <span className="text-emerald-500">study space</span>
+                        <span className="text-blue-500">study space</span>
                     </h1>
                     <p className="text-sm text-slate-400 mt-1.5">Join thousands of students studying smarter</p>
                 </div>

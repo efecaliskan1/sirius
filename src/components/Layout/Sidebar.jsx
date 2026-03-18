@@ -61,8 +61,23 @@ export default function Sidebar() {
                 borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#E0E7FF',
                 boxShadow: isDark ? '1px 0 20px rgba(0,0,0,0.2)' : '1px 0 10px rgba(0,0,0,0.01)',
             }}>
+            <div className="px-5 pt-5 pb-2">
+                <div
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${isDark ? 'bg-white/[0.03]' : 'bg-white/70'} border`}
+                    style={{ borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(224,231,255,0.9)' }}
+                >
+                    <div className="w-12 h-12 rounded-[20px] bg-gradient-to-br from-white via-sky-50 to-blue-100/80 p-1.5 shadow-[0_14px_30px_rgba(59,130,246,0.16)]">
+                        <img src="/sirius-logo.svg" alt="Sirius logo" className="w-full h-full object-contain scale-[1.08]" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-[15px] font-bold leading-tight" style={{ color: 'var(--theme-text, #1E293B)' }}>Sirius</p>
+                        <p className="text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--theme-text-secondary, #64748B)' }}>Study smarter</p>
+                    </div>
+                </div>
+            </div>
+
             {/* Profile */}
-            <div className="px-5 pt-6 pb-4">
+            <div className="px-5 pt-4 pb-4">
                 <div className="flex items-center gap-3">
                     <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white font-semibold text-sm ${isDark ? 'shadow-lg shadow-black/30' : 'shadow-md shadow-black/10'}`} style={{ background: 'var(--theme-primary, #4F46E5)' }}>
                         {user?.name?.charAt(0)?.toUpperCase() || 'S'}
