@@ -45,6 +45,7 @@ export default function StatsPage() {
     for (let i = 0; i < heatmapData.length; i += 7) {
         heatmapWeeks.push(heatmapData.slice(i, i + 7));
     }
+    const lastWeekIndex = heatmapWeeks.length - 1;
 
     // Course focus time as bar list (not pie chart)
     const courseData = Object.entries(stats.courseFocusTime)
@@ -90,13 +91,22 @@ export default function StatsPage() {
                     <div className="flex gap-[3px] min-w-fit">
                         {heatmapWeeks.map((week, wi) => (
                             <div key={wi} className="flex flex-col gap-[3px] relative">
-                                {week.map((day) => (
+                                {week.map((day, di) => {
+                                    const shouldOpenBelow = di < 3;
+                                    const alignLeft = wi < 2;
+                                    const alignRight = wi > lastWeekIndex - 2;
+
+                                    return (
                                     <div
                                         key={day.date}
                                         className="heatmap-cell relative group z-0 hover:z-40"
                                         style={{ backgroundColor: HEATMAP_COLORS[day.level] }}
                                     >
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max bg-slate-800 text-white text-[11px] py-2 px-3 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-xl">
+                                        <div className={`absolute w-max max-w-[220px] bg-slate-800 text-white text-[11px] py-2 px-3 rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none shadow-xl ${
+                                            shouldOpenBelow ? 'top-full mt-2' : 'bottom-full mb-2'
+                                        } ${
+                                            alignLeft ? 'left-0 translate-x-0' : alignRight ? 'right-0 translate-x-0' : 'left-1/2 -translate-x-1/2'
+                                        }`}>
                                             <div className="font-semibold mb-1 border-b border-slate-700 pb-1">{day.date}</div>
                                             <div className="flex justify-between gap-4 mb-0.5">
                                                 <span className="text-slate-400">Time:</span>
@@ -111,10 +121,14 @@ export default function StatsPage() {
                                                     Main: {userCourses.find(c => c.id === day.mainCourseId)?.courseName}
                                                 </div>
                                             )}
-                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-800"></div>
+                                            <div className={`absolute border-[5px] border-transparent ${
+                                                shouldOpenBelow ? 'bottom-full border-b-slate-800' : 'top-full border-t-slate-800'
+                                            } ${
+                                                alignLeft ? 'left-3' : alignRight ? 'right-3' : 'left-1/2 -translate-x-1/2'
+                                            }`}></div>
                                         </div>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         ))}
                     </div>

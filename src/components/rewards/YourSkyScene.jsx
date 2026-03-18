@@ -338,7 +338,6 @@ export default function YourSkyScene({
                         />
                     </motion.button>
                 ))}
-
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/70 to-transparent" />
 
                 <div className="absolute right-4 top-4 max-w-[44%] rounded-2xl border border-white/70 bg-white/68 px-4 py-3 shadow-lg backdrop-blur-md">
