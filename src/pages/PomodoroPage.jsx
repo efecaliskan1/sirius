@@ -68,6 +68,7 @@ export default function PomodoroPage() {
     const intervalRef = useRef(null);
     const bellAudioRef = useRef(null);
     const svgRef = useRef(null);
+    const targetEndTimeRef = useRef(null);
 
     // Initial loading animation
     useEffect(() => {
@@ -226,21 +227,55 @@ export default function PomodoroPage() {
         user,
     ]);
 
+    const syncTimeLeft = useCallback(() => {
+        if (!targetEndTimeRef.current) return false;
+
+        const remainingMs = targetEndTimeRef.current - Date.now();
+        if (remainingMs <= 0) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+            targetEndTimeRef.current = null;
+            setTimeLeft(0);
+            handleSessionComplete();
+            return true;
+        }
+
+        setTimeLeft(Math.ceil(remainingMs / 1000));
+        return false;
+    }, [handleSessionComplete]);
+
     useEffect(() => {
         if (isRunning) {
-            intervalRef.current = setInterval(() => {
-                setTimeLeft((prev) => {
-                    if (prev <= 1) {
-                        clearInterval(intervalRef.current);
-                        handleSessionComplete();
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
+            if (!targetEndTimeRef.current) {
+                targetEndTimeRef.current = Date.now() + (timeLeft * 1000);
+            }
+
+            syncTimeLeft();
+            intervalRef.current = setInterval(syncTimeLeft, 1000);
         }
-        return () => clearInterval(intervalRef.current);
-    }, [handleSessionComplete, isRunning]);
+        return () => {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        };
+    }, [isRunning, syncTimeLeft, timeLeft]);
+
+    useEffect(() => {
+        if (!isRunning) return undefined;
+
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                syncTimeLeft();
+            }
+        };
+
+        window.addEventListener('focus', handleVisibilityChange);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('focus', handleVisibilityChange);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isRunning, syncTimeLeft]);
 
     // Auto focus mode when running
     useEffect(() => {
@@ -255,6 +290,13 @@ export default function PomodoroPage() {
     };
 
     const handlePause = () => {
+        if (targetEndTimeRef.current) {
+            const remainingMs = Math.max(targetEndTimeRef.current - Date.now(), 0);
+            setTimeLeft(Math.ceil(remainingMs / 1000));
+        }
+        targetEndTimeRef.current = null;
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
         setIsRunning(false);
     };
 
@@ -262,6 +304,8 @@ export default function PomodoroPage() {
         setIsRunning(false);
         setIsFocusMode(false);
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        targetEndTimeRef.current = null;
         setRound(1);
         setSessionType('focus');
         setTimeLeft(getDuration('focus'));
@@ -342,6 +386,8 @@ export default function PomodoroPage() {
             }
             return newSettings;
         });
+
+        targetEndTimeRef.current = null;
 
     }, [isRunning, isDragging, sessionType]);
 
