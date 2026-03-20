@@ -1,176 +1,214 @@
-// Ambient sound generator using Web Audio API
-// Generates procedural sounds without any external files
-
 let audioContext = null;
-let activeNodes = [];
+let activeScene = null;
 
 function getAudioContext() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
+
     return audioContext;
 }
 
-function createBrownNoise(ctx, gain) {
+function createBufferSource(ctx, generator) {
     const bufferSize = 2 * ctx.sampleRate;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const output = buffer.getChannelData(0);
-    let lastOut = 0;
-    for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        output[i] = (lastOut + 0.02 * white) / 1.02;
-        lastOut = output[i];
-        output[i] *= 3.5;
-    }
+    generator(output);
+
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = gain;
+    return source;
+}
 
-    // Low pass for smoothness
+function createBrownNoise(ctx, destination, gainValue, cutoff = 500) {
+    let lastOut = 0;
+    const source = createBufferSource(ctx, (output) => {
+        for (let index = 0; index < output.length; index += 1) {
+            const white = Math.random() * 2 - 1;
+            output[index] = (lastOut + 0.02 * white) / 1.02;
+            lastOut = output[index];
+            output[index] *= 3.5;
+        }
+    });
+
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 400;
+    filter.frequency.value = cutoff;
+
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = gainValue;
 
     source.connect(filter);
     filter.connect(gainNode);
-    gainNode.connect(ctx.destination);
+    gainNode.connect(destination);
     source.start();
-    return { source, gainNode, filter };
+
+    return { stopNodes: [source], connectedNodes: [filter, gainNode] };
 }
 
-function createPinkNoise(ctx, gain) {
-    const bufferSize = 2 * ctx.sampleRate;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const output = buffer.getChannelData(0);
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-    for (let i = 0; i < bufferSize; i++) {
-        const white = Math.random() * 2 - 1;
-        b0 = 0.99886 * b0 + white * 0.0555179;
-        b1 = 0.99332 * b1 + white * 0.0750759;
-        b2 = 0.96900 * b2 + white * 0.1538520;
-        b3 = 0.86650 * b3 + white * 0.3104856;
-        b4 = 0.55000 * b4 + white * 0.5329522;
-        b5 = -0.7616 * b5 - white * 0.0168980;
-        output[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-        output[i] *= 0.11;
-        b6 = white * 0.115926;
-    }
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
+function createPinkNoise(ctx, destination, gainValue) {
+    let b0 = 0;
+    let b1 = 0;
+    let b2 = 0;
+    let b3 = 0;
+    let b4 = 0;
+    let b5 = 0;
+    let b6 = 0;
+
+    const source = createBufferSource(ctx, (output) => {
+        for (let index = 0; index < output.length; index += 1) {
+            const white = Math.random() * 2 - 1;
+            b0 = 0.99886 * b0 + white * 0.0555179;
+            b1 = 0.99332 * b1 + white * 0.0750759;
+            b2 = 0.96900 * b2 + white * 0.1538520;
+            b3 = 0.86650 * b3 + white * 0.3104856;
+            b4 = 0.55000 * b4 + white * 0.5329522;
+            b5 = -0.7616 * b5 - white * 0.0168980;
+            output[index] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+            b6 = white * 0.115926;
+        }
+    });
+
+    const gainNode = ctx.createGain();
+    gainNode.gain.value = gainValue;
+
+    source.connect(gainNode);
+    gainNode.connect(destination);
+    source.start();
+
+    return { stopNodes: [source], connectedNodes: [gainNode] };
+}
+
+function createOscillator(ctx, destination, { frequency, type = 'sine', gain = 0.02, filterFrequency = null, q = 0.7 }) {
+    const oscillator = ctx.createOscillator();
+    oscillator.type = type;
+    oscillator.frequency.value = frequency;
+
     const gainNode = ctx.createGain();
     gainNode.gain.value = gain;
-    source.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    source.start();
-    return { source, gainNode };
+
+    let filter = null;
+
+    oscillator.connect(gainNode);
+
+    if (filterFrequency) {
+        filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = filterFrequency;
+        filter.Q.value = q;
+        gainNode.connect(filter);
+        filter.connect(destination);
+    } else {
+        gainNode.connect(destination);
+    }
+
+    oscillator.start();
+
+    return {
+        stopNodes: [oscillator],
+        connectedNodes: filter ? [gainNode, filter] : [gainNode],
+    };
 }
 
-function createRain() {
-    const ctx = getAudioContext();
-    // Main rain: brown noise with heavy low-pass
-    const rain = createBrownNoise(ctx, 0.3);
-    rain.filter.frequency.value = 800;
-
-    // Rain detail: pink noise at lower volume + high-pass
-    const detail = createPinkNoise(ctx, 0.08);
-    const highpass = ctx.createBiquadFilter();
-    highpass.type = 'highpass';
-    highpass.frequency.value = 2000;
-
-    // Reconnect detail through highpass
-    detail.source.disconnect();
-    detail.source.connect(highpass);
-    highpass.connect(detail.gainNode);
-
-    activeNodes.push(rain.source, detail.source);
-    return { sources: [rain, detail] };
+function collectParts(parts) {
+    return parts.reduce((accumulator, part) => ({
+        stopNodes: [...accumulator.stopNodes, ...(part.stopNodes || [])],
+        connectedNodes: [...accumulator.connectedNodes, ...(part.connectedNodes || [])],
+    }), { stopNodes: [], connectedNodes: [] });
 }
 
-function createForest() {
-    const ctx = getAudioContext();
-    // Wind: gentle brown noise
-    const wind = createBrownNoise(ctx, 0.15);
-    wind.filter.frequency.value = 300;
-
-    // Rustling leaves: pink noise with bandpass
-    const leaves = createPinkNoise(ctx, 0.04);
-    const bandpass = ctx.createBiquadFilter();
-    bandpass.type = 'bandpass';
-    bandpass.frequency.value = 3000;
-    bandpass.Q.value = 0.5;
-
-    leaves.source.disconnect();
-    leaves.source.connect(bandpass);
-    bandpass.connect(leaves.gainNode);
-
-    // Subtle modulation via LFO
-    const lfo = ctx.createOscillator();
-    lfo.type = 'sine';
-    lfo.frequency.value = 0.15;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.06;
-    lfo.connect(lfoGain);
-    lfoGain.connect(wind.gainNode.gain);
-    lfo.start();
-
-    activeNodes.push(wind.source, leaves.source, lfo);
-    return { sources: [wind, leaves] };
+function createRainScene(ctx, destination) {
+    const baseRain = createBrownNoise(ctx, destination, 0.42, 850);
+    const detailRain = createPinkNoise(ctx, destination, 0.08);
+    const air = createOscillator(ctx, destination, { frequency: 180, type: 'triangle', gain: 0.003 });
+    return collectParts([baseRain, detailRain, air]);
 }
 
-function createLibrary() {
-    const ctx = getAudioContext();
-    // Very quiet ambient: gentle brown noise, nearly silent
-    const ambient = createBrownNoise(ctx, 0.06);
-    ambient.filter.frequency.value = 200;
-
-    // Subtle air conditioning hum
-    const hum = ctx.createOscillator();
-    hum.type = 'sine';
-    hum.frequency.value = 60;
-    const humGain = ctx.createGain();
-    humGain.gain.value = 0.015;
-    hum.connect(humGain);
-    humGain.connect(ctx.destination);
-    hum.start();
-
-    activeNodes.push(ambient.source, hum);
-    return { sources: [ambient] };
+function createLibraryScene(ctx, destination) {
+    const roomTone = createBrownNoise(ctx, destination, 0.08, 180);
+    const airHum = createOscillator(ctx, destination, { frequency: 60, gain: 0.012 });
+    const fluorescent = createOscillator(ctx, destination, { frequency: 120, gain: 0.004, type: 'triangle' });
+    return collectParts([roomTone, airHum, fluorescent]);
 }
 
-export function startAmbientSound(type) {
+function createCafeScene(ctx, destination) {
+    const roomBed = createBrownNoise(ctx, destination, 0.12, 420);
+    const chatter = createPinkNoise(ctx, destination, 0.06);
+    const cupTone = createOscillator(ctx, destination, { frequency: 420, gain: 0.004, type: 'triangle', filterFrequency: 640, q: 1.2 });
+    const lowHum = createOscillator(ctx, destination, { frequency: 95, gain: 0.007, type: 'sawtooth' });
+    return collectParts([roomBed, chatter, cupTone, lowHum]);
+}
+
+export async function startAmbientSound(type, volume = 0.45) {
     stopAmbientSound();
-    if (type === 'none' || !type) return;
+
+    if (!type || type === 'none') return;
 
     try {
-        switch (type) {
-            case 'rain': createRain(); break;
-            case 'forest': createForest(); break;
-            case 'library': createLibrary(); break;
-            default: break;
+        const ctx = getAudioContext();
+
+        if (ctx.state === 'suspended') {
+            await ctx.resume();
         }
-    } catch (e) {
-        console.warn('Failed to start ambient sound:', e);
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.value = volume;
+        masterGain.connect(ctx.destination);
+
+        let scene = null;
+        if (type === 'rain') scene = createRainScene(ctx, masterGain);
+        if (type === 'cafe') scene = createCafeScene(ctx, masterGain);
+        if (type === 'library') scene = createLibraryScene(ctx, masterGain);
+
+        activeScene = {
+            masterGain,
+            stopNodes: scene?.stopNodes || [],
+            connectedNodes: scene?.connectedNodes || [],
+        };
+    } catch (error) {
+        console.warn('Failed to start ambient sound:', error);
+        stopAmbientSound();
     }
 }
 
 export function stopAmbientSound() {
-    for (const node of activeNodes) {
-        try { node.stop(); } catch { }
-        try { node.disconnect(); } catch { }
+    if (!activeScene) return;
+
+    activeScene.stopNodes.forEach((node) => {
+        try {
+            node.stop();
+        } catch {
+            // Node may already be stopped.
+        }
+        try {
+            node.disconnect();
+        } catch {
+            // Node may already be disconnected.
+        }
+    });
+
+    activeScene.connectedNodes.forEach((node) => {
+        try {
+            node.disconnect();
+        } catch {
+            // Node may already be disconnected.
+        }
+    });
+
+    try {
+        activeScene.masterGain.disconnect();
+    } catch {
+        // Gain node may already be disconnected.
     }
-    activeNodes = [];
+
+    activeScene = null;
 }
 
 export function setAmbientVolume(volume) {
-    // Volume 0-1
-    for (const node of activeNodes) {
-        try {
-            if (node.gain) {
-                node.gain.value = volume;
-            }
-        } catch { }
-    }
+    if (!activeScene?.masterGain || !audioContext) return;
+
+    const nextVolume = Math.max(0, Math.min(1, volume));
+    activeScene.masterGain.gain.cancelScheduledValues(audioContext.currentTime);
+    activeScene.masterGain.gain.linearRampToValueAtTime(nextVolume, audioContext.currentTime + 0.12);
 }

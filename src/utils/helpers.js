@@ -44,9 +44,9 @@ export function getGreeting(locale = 'en') {
         hour12: false,
     }).format(new Date()));
     if (locale === 'tr') {
-        if (hour < 12) return 'Gunaydin';
-        if (hour < 17) return 'Iyi ogleden sonralar';
-        return 'Iyi aksamlar';
+        if (hour < 12) return 'Günaydın';
+        if (hour < 18) return 'İyi günler';
+        return 'İyi akşamlar';
     }
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';

@@ -76,11 +76,11 @@ export default function HomePage() {
     const companion = getCompanionStage(levelInfo.level);
     const localizedMotivationMessage = locale === 'tr'
         ? user?.streakCount
-            ? `${user.streakCount} gunluk serin seni ileri tasiyor.`
-            : 'Bugun kisisel gokyuzunu biraz daha zenginlestirmeye hazir misin?'
+            ? `${user.streakCount} günlük serin harika gidiyor. Aynı ritmi koru.`
+            : 'Bugün kendi çalışma düzenini biraz daha güçlendirmeye hazır mısın?'
         : motivationalMessage;
     const localizedCompanionSubtitle = locale === 'tr'
-        ? `${companion.name} · Kisisel gokyun her odak oturumunda biraz daha parlaklasiyor.`
+        ? `${companion.name} · Her odak oturumunda ilerlemen biraz daha görünür hale geliyor.`
         : fillCopy(copy.motivationSubtitle, { name: companion.name, description: companion.description });
 
     const suggestion = useMemo(() => getSmartSuggestion(userCourses, courseTopics, userSessions, today), [userCourses, courseTopics, userSessions, today]);
@@ -215,7 +215,7 @@ export default function HomePage() {
         ? displayedStudyRoomUsers[0].focusingNow
             ? fillCopy(copy.isInSession, {
                 name: displayedStudyRoomUsers[0].displayName || copy.student,
-                session: displayedStudyRoomUsers[0].currentSessionTitle || 'a focus session',
+                session: displayedStudyRoomUsers[0].currentSessionTitle || (locale === 'tr' ? 'bir odak oturumu' : 'a focus session'),
             })
             : fillCopy(copy.isOnline, { name: displayedStudyRoomUsers[0].displayName || copy.student })
         : null;

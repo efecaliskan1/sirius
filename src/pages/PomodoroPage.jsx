@@ -3,11 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
-import YourSkyScene from '../components/rewards/YourSkyScene';
-import { COINS_PER_SESSION, DEFAULT_POMODORO_SETTINGS, XP_PER_SESSION } from '../utils/constants';
+import { AMBIENT_SOUNDS, COINS_PER_SESSION, DEFAULT_POMODORO_SETTINGS, XP_PER_SESSION } from '../utils/constants';
 import { checkNewBadges, getSessionStats } from '../utils/rewardEngine';
 import { getDateKeyInTurkey, getToday, minutesToDisplay } from '../utils/helpers';
 import { getWeekKey } from '../utils/social';
+import { setAmbientVolume, startAmbientSound, stopAmbientSound } from '../utils/ambientSounds';
 
 const SESSION_TYPES = [
     {
@@ -162,6 +162,8 @@ export default function PomodoroPage() {
     const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(DEFAULT_POMODORO_SETTINGS));
     const [selectedCourseId, setSelectedCourseId] = useState(() => searchParams.get('courseId') || '');
     const [selectedTaskId, setSelectedTaskId] = useState(() => searchParams.get('taskId') || '');
+    const [ambientSound, setAmbientSound] = useState('none');
+    const [ambientVolume, setAmbientVolumeState] = useState(45);
     const [isRunning, setIsRunning] = useState(false);
     const [timeLeft, setTimeLeft] = useState((DEFAULT_POMODORO_SETTINGS.workTime || 25) * 60);
     const [round, setRound] = useState(1);
@@ -218,12 +220,6 @@ export default function PomodoroPage() {
         || selectedCourse?.courseName
         || 'Focus Session';
 
-    const currentType = SESSION_TYPES.find((type) => type.key === sessionType) || SESSION_TYPES[0];
-
-    const completedSessionsCount = useMemo(
-        () => sessions.filter((session) => session.userId === user?.id && session.completed).length,
-        [sessions, user?.id]
-    );
     const deepFocusSessionsCount = useMemo(
         () => sessions.filter((session) => session.userId === user?.id && session.completed && session.mode === 'deep').length,
         [sessions, user?.id]
@@ -254,8 +250,12 @@ export default function PomodoroPage() {
         { label: 'Current streak', value: `${user?.streakCount || 0}d` },
     ];
 
+    const soundOptions = AMBIENT_SOUNDS.filter((sound) => ['none', 'rain', 'cafe', 'library'].includes(sound.id));
+
     const getDynamicColor = useCallback(() => {
-        if (sessionType !== 'focus') return currentType.color;
+        if (sessionType !== 'focus') {
+            return sessionType === 'shortBreak' ? '#22C55E' : '#06B6D4';
+        }
 
         if (selectedCourse?.color) return selectedCourse.color;
 
@@ -264,7 +264,7 @@ export default function PomodoroPage() {
         const g = Math.round(110 - (ratio * 110));
         const b = Math.round(247 - (ratio * (247 - 215)));
         return `rgb(${r}, ${g}, ${b})`;
-    }, [currentType.color, selectedCourse?.color, selectedMinutes, sessionType]);
+    }, [selectedCourse?.color, selectedMinutes, sessionType]);
 
     const activeColor = getDynamicColor();
 
@@ -326,6 +326,7 @@ export default function PomodoroPage() {
     const handleSessionComplete = useCallback(() => {
         setIsRunning(false);
         targetEndTimeRef.current = null;
+        stopAmbientSound();
 
         if (!bellAudioRef.current) {
             bellAudioRef.current = new Audio('https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3');
@@ -427,7 +428,7 @@ export default function PomodoroPage() {
             setSessionType('focus');
             setTimeLeft(getDuration('focus'));
             setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
-            addToast({ type: 'success', icon: '☕', message: 'Break complete. Sirius is ready for another focus block.' });
+        addToast({ type: 'success', icon: '☕', message: 'Break complete. Sirius is ready for another focus block.' });
         }
     }, [
         addBadge,
@@ -552,6 +553,9 @@ export default function PomodoroPage() {
         setShowCompletion(null);
         setTabSwitchWarning(false);
         setIsRunning(true);
+        if (ambientSound !== 'none') {
+            startAmbientSound(ambientSound, ambientVolume / 100).catch(() => { });
+        }
     };
 
     const handlePause = useCallback(() => {
@@ -564,6 +568,7 @@ export default function PomodoroPage() {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
         setIsRunning(false);
+        stopAmbientSound();
     }, []);
 
     const resetTimer = () => {
@@ -606,6 +611,7 @@ export default function PomodoroPage() {
     const confirmExitDeepMode = () => {
         if (!exitConfirmReady) return;
         handlePause();
+        stopAmbientSound();
         setExperienceMode('normal');
         setShowExitConfirm(false);
         setExitConfirmReady(false);
@@ -617,8 +623,28 @@ export default function PomodoroPage() {
         setExitConfirmReady(false);
     };
 
-    const handleDrag = useCallback((event) => {
-        if (isRunning || !isDragging || !svgRef.current) return;
+    const handleAmbientSoundChange = async (nextSound) => {
+        setAmbientSound(nextSound);
+
+        if (nextSound === 'none') {
+            stopAmbientSound();
+            return;
+        }
+
+        await startAmbientSound(nextSound, ambientVolume / 100);
+    };
+
+    const handleAmbientVolumeChange = (nextVolume) => {
+        const parsedVolume = Math.max(0, Math.min(100, Number(nextVolume) || 0));
+        setAmbientVolumeState(parsedVolume);
+
+        if (ambientSound !== 'none') {
+            setAmbientVolume(parsedVolume / 100);
+        }
+    };
+
+    const updateTimeFromPointer = useCallback((event) => {
+        if (!svgRef.current) return;
 
         const svg = svgRef.current;
         const point = svg.createSVGPoint();
@@ -631,9 +657,9 @@ export default function PomodoroPage() {
         const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
         const dx = svgPoint.x - TIMER_CENTER;
         const dy = svgPoint.y - TIMER_CENTER;
-
         let angle = Math.atan2(dy, dx);
         angle += Math.PI / 2;
+
         if (angle < 0) angle += 2 * Math.PI;
 
         const maxMinutes = getMaxMinutesForType(sessionType);
@@ -660,7 +686,12 @@ export default function PomodoroPage() {
         });
 
         targetEndTimeRef.current = null;
-    }, [isDragging, isRunning, sessionType]);
+    }, [sessionType]);
+
+    const handleDrag = useCallback((event) => {
+        if (isRunning || !isDragging || !svgRef.current) return;
+        updateTimeFromPointer(event);
+    }, [isDragging, isRunning, updateTimeFromPointer]);
 
     const beginDrag = useCallback((event) => {
         if (isRunning || !svgRef.current) return;
@@ -678,11 +709,12 @@ export default function PomodoroPage() {
         const dy = svgPoint.y - TIMER_CENTER;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (Math.abs(distance - TIMER_RADIUS) > 24) return;
+        if (Math.abs(distance - TIMER_RADIUS) > 42) return;
         if (event.cancelable) event.preventDefault();
 
         setIsDragging(true);
-    }, [isRunning]);
+        updateTimeFromPointer(event);
+    }, [isRunning, updateTimeFromPointer]);
 
     useEffect(() => {
         if (!isDragging) return undefined;
@@ -704,6 +736,7 @@ export default function PomodoroPage() {
     useEffect(() => () => {
         clearInterval(intervalRef.current);
         clearTimeout(exitConfirmTimeoutRef.current);
+        stopAmbientSound();
     }, []);
 
     if (isLoading) {
@@ -1111,6 +1144,41 @@ export default function PomodoroPage() {
                                                 </div>
                                                 <div className="rounded-[28px] border border-slate-100 bg-white p-4">
                                                     <div className="space-y-3">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                                                                Ambient sound
+                                                            </label>
+                                                            <span className="text-xs font-medium text-slate-400">
+                                                                {ambientVolume}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {soundOptions.map((sound) => (
+                                                                <button
+                                                                    key={sound.id}
+                                                                    onClick={() => handleAmbientSoundChange(sound.id)}
+                                                                    className={`rounded-full border px-3 py-2 text-sm font-semibold transition-all ${ambientSound === sound.id
+                                                                        ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                                                                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                                                                        }`}
+                                                                >
+                                                                    <span className="mr-1.5">{sound.emoji}</span>
+                                                                    {sound.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="100"
+                                                            value={ambientVolume}
+                                                            onChange={(event) => handleAmbientVolumeChange(event.target.value)}
+                                                            className="w-full accent-slate-900"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-[28px] border border-slate-100 bg-white p-4">
+                                                    <div className="space-y-3">
                                                         <div>
                                                             <label className="label">Linked course</label>
                                                             <select
@@ -1192,13 +1260,6 @@ export default function PomodoroPage() {
                                         </div>
                                     </div>
                                 </div>
-
-                                <YourSkyScene
-                                    sessionsCompleted={completedSessionsCount}
-                                    streak={user?.streakCount || 0}
-                                    totalMinutes={user?.totalFocusMinutes || 0}
-                                    focusProgress={isRunning && sessionType === 'focus' ? runningProgress : 0}
-                                />
                         </div>
                     </motion.section>
                 )}
