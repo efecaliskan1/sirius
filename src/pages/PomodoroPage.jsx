@@ -3,25 +3,136 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
-import YourSkyScene from '../components/rewards/YourSkyScene';
-import { DEFAULT_POMODORO_SETTINGS, COINS_PER_SESSION, XP_PER_SESSION, AMBIENT_SOUNDS } from '../utils/constants';
-import { checkNewBadges, getSessionStats, getLevelFromXP, getCompanionStage } from '../utils/rewardEngine';
-import { minutesToDisplay } from '../utils/helpers';
-import { startAmbientSound, stopAmbientSound } from '../utils/ambientSounds';
+import YourSkyScene, { getSkySummary } from '../components/rewards/YourSkyScene';
+import { COINS_PER_SESSION, DEFAULT_POMODORO_SETTINGS, XP_PER_SESSION } from '../utils/constants';
+import { checkNewBadges, getSessionStats } from '../utils/rewardEngine';
+import { getDateKeyInTurkey, getToday, minutesToDisplay } from '../utils/helpers';
 import { getWeekKey } from '../utils/social';
 
 const SESSION_TYPES = [
-    { key: 'focus', label: 'Focus', color: '#4F6EF7' },
-    { key: 'shortBreak', label: 'Short Break', color: '#3BAF75' },
-    { key: 'longBreak', label: 'Long Break', color: '#06B6D4' },
+    {
+        key: 'focus',
+        label: 'Focus',
+        eyebrow: 'Deep work block',
+        description: 'Shape a calm, structured study session with a clear objective.',
+        color: '#4F6EF7',
+        glow: 'rgba(79, 110, 247, 0.24)',
+    },
+    {
+        key: 'shortBreak',
+        label: 'Short Break',
+        eyebrow: 'Reset and breathe',
+        description: 'A short reset to keep your attention fresh between focus rounds.',
+        color: '#22C55E',
+        glow: 'rgba(34, 197, 94, 0.24)',
+    },
+    {
+        key: 'longBreak',
+        label: 'Long Break',
+        eyebrow: 'Longer recovery',
+        description: 'A deeper pause after multiple rounds to protect your energy.',
+        color: '#06B6D4',
+        glow: 'rgba(6, 182, 212, 0.24)',
+    },
 ];
-const TIMER_RADIUS = 140;
+
+const PRESET_OPTIONS = [
+    {
+        key: '25/5',
+        label: '25 / 5',
+        description: 'Classic rhythm for everyday studying.',
+        settings: {
+            workTime: 25,
+            shortBreakTime: 5,
+            longBreakTime: 15,
+            roundsBeforeLongBreak: 4,
+        },
+    },
+    {
+        key: '50/10',
+        label: '50 / 10',
+        description: 'Longer study blocks with calmer recovery.',
+        settings: {
+            workTime: 50,
+            shortBreakTime: 10,
+            longBreakTime: 20,
+            roundsBeforeLongBreak: 3,
+        },
+    },
+    {
+        key: 'custom',
+        label: 'Custom',
+        description: 'Tune the cadence around your own workload.',
+    },
+];
+
+const DEEP_SPACE_STARS = [
+    { left: '8%', top: '18%', size: 2, delay: 0.2 },
+    { left: '16%', top: '32%', size: 3, delay: 1.1 },
+    { left: '24%', top: '12%', size: 2, delay: 1.6 },
+    { left: '34%', top: '26%', size: 2, delay: 0.9 },
+    { left: '42%', top: '10%', size: 4, delay: 2.1 },
+    { left: '55%', top: '18%', size: 2, delay: 0.5 },
+    { left: '64%', top: '30%', size: 3, delay: 1.8 },
+    { left: '72%', top: '14%', size: 2, delay: 2.4 },
+    { left: '81%', top: '26%', size: 3, delay: 0.8 },
+    { left: '90%', top: '18%', size: 2, delay: 1.3 },
+    { left: '76%', top: '56%', size: 2, delay: 0.4 },
+    { left: '62%', top: '66%', size: 4, delay: 2.7 },
+    { left: '48%', top: '74%', size: 2, delay: 1.9 },
+    { left: '28%', top: '70%', size: 3, delay: 1.4 },
+    { left: '12%', top: '62%', size: 2, delay: 2.3 },
+];
+
+const TIMER_RADIUS = 136;
 const TIMER_CENTER = 160;
+const HOLD_TO_EXIT_MS = 950;
 
 function getMaxMinutesForType(type) {
     if (type === 'focus') return 120;
     if (type === 'longBreak') return 60;
     return 30;
+}
+
+function detectPreset(settings) {
+    const workTime = settings.workTime || settings.focusDuration || 25;
+    const shortBreakTime = settings.shortBreakTime || settings.shortBreakDuration || 5;
+    const longBreakTime = settings.longBreakTime || settings.longBreakDuration || 15;
+    const roundsBeforeLongBreak = settings.roundsBeforeLongBreak || settings.sessionsUntilLongBreak || 4;
+
+    const matchingPreset = PRESET_OPTIONS.find((preset) => {
+        if (!preset.settings) return false;
+        return (
+            preset.settings.workTime === workTime &&
+            preset.settings.shortBreakTime === shortBreakTime &&
+            preset.settings.longBreakTime === longBreakTime &&
+            preset.settings.roundsBeforeLongBreak === roundsBeforeLongBreak
+        );
+    });
+
+    return matchingPreset?.key || 'custom';
+}
+
+function getNextSessionState(currentType, currentRound, safeSettings) {
+    if (currentType === 'focus') {
+        if (currentRound >= safeSettings.roundsBeforeLongBreak) {
+            return { type: 'longBreak', round: 1 };
+        }
+
+        return { type: 'shortBreak', round: currentRound + 1 };
+    }
+
+    return { type: 'focus', round: currentRound };
+}
+
+function formatClock(timeLeft) {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+
+    return {
+        minutes: minutes.toString().padStart(2, '0'),
+        seconds: seconds.toString().padStart(2, '0'),
+    };
 }
 
 export default function PomodoroPage() {
@@ -40,79 +151,257 @@ export default function PomodoroPage() {
     const [searchParams] = useSearchParams();
 
     const [sessionType, setSessionType] = useState('focus');
+    const [experienceMode, setExperienceMode] = useState(() => searchParams.get('mode') === 'deep' ? 'deep' : 'normal');
     const [settings, setSettings] = useState(() => {
         try {
             const saved = localStorage.getItem('studywithme_pomodoro_settings');
             return saved ? JSON.parse(saved) : DEFAULT_POMODORO_SETTINGS;
-        } catch { return DEFAULT_POMODORO_SETTINGS; }
+        } catch {
+            return DEFAULT_POMODORO_SETTINGS;
+        }
     });
-
-    // Validate settings in case of old cache
-    const safeSettings = useMemo(() => ({
-        workTime: settings.workTime || settings.focusDuration || 25,
-        shortBreakTime: settings.shortBreakTime || settings.shortBreakDuration || 5,
-        longBreakTime: settings.longBreakTime || settings.longBreakDuration || 15,
-        roundsBeforeLongBreak: settings.roundsBeforeLongBreak || settings.sessionsUntilLongBreak || 4
-    }), [settings]);
-
+    const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(DEFAULT_POMODORO_SETTINGS));
     const [selectedCourseId, setSelectedCourseId] = useState(() => searchParams.get('courseId') || '');
     const [selectedTaskId, setSelectedTaskId] = useState(() => searchParams.get('taskId') || '');
+    const [sessionLabel, setSessionLabel] = useState(() => searchParams.get('label') || '');
     const [isRunning, setIsRunning] = useState(false);
-    const [isFocusMode, setIsFocusMode] = useState(false);
-    const [timeLeft, setTimeLeft] = useState(safeSettings.workTime * 60);
+    const [timeLeft, setTimeLeft] = useState((DEFAULT_POMODORO_SETTINGS.workTime || 25) * 60);
     const [round, setRound] = useState(1);
     const [showCompletion, setShowCompletion] = useState(null);
     const [sessionNote, setSessionNote] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isDragging, setIsDragging] = useState(false);
+    const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
+    const [exitHoldProgress, setExitHoldProgress] = useState(0);
 
     const intervalRef = useRef(null);
     const bellAudioRef = useRef(null);
     const svgRef = useRef(null);
     const targetEndTimeRef = useRef(null);
+    const exitHoldIntervalRef = useRef(null);
 
-    // Initial loading animation
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 900);
-        return () => clearTimeout(timer);
-    }, []);
+    const safeSettings = useMemo(() => ({
+        workTime: settings.workTime || settings.focusDuration || 25,
+        shortBreakTime: settings.shortBreakTime || settings.shortBreakDuration || 5,
+        longBreakTime: settings.longBreakTime || settings.longBreakDuration || 15,
+        roundsBeforeLongBreak: settings.roundsBeforeLongBreak || settings.sessionsUntilLongBreak || 4,
+    }), [settings]);
 
     const getDuration = useCallback((type) => {
         switch (type) {
-            case 'focus': return safeSettings.workTime * 60;
-            case 'shortBreak': return safeSettings.shortBreakTime * 60;
-            case 'longBreak': return safeSettings.longBreakTime * 60;
-            default: return safeSettings.workTime * 60;
+            case 'focus':
+                return safeSettings.workTime * 60;
+            case 'shortBreak':
+                return safeSettings.shortBreakTime * 60;
+            case 'longBreak':
+                return safeSettings.longBreakTime * 60;
+            default:
+                return safeSettings.workTime * 60;
         }
-    }, [safeSettings.workTime, safeSettings.shortBreakTime, safeSettings.longBreakTime]);
-
-    useEffect(() => {
-        if (!isRunning) setTimeLeft(getDuration(sessionType));
-    }, [sessionType, getDuration]);
-
-    // Save settings
-    useEffect(() => {
-        localStorage.setItem('studywithme_pomodoro_settings', JSON.stringify(settings));
-    }, [settings]);
-
-    useEffect(() => {
-        localStorage.setItem('studywithme_pomodoro_settings', JSON.stringify(safeSettings));
     }, [safeSettings]);
+
+    const userCourses = useMemo(
+        () => courses.filter((course) => course.userId === user?.id),
+        [courses, user?.id]
+    );
+    const openTasks = useMemo(
+        () => tasks.filter((task) => task.userId === user?.id && !task.completed),
+        [tasks, user?.id]
+    );
+    const availableTasks = useMemo(
+        () => (selectedCourseId ? openTasks.filter((task) => task.courseId === selectedCourseId) : openTasks),
+        [openTasks, selectedCourseId]
+    );
+    const selectedCourse = userCourses.find((course) => course.id === selectedCourseId);
+    const selectedTask = openTasks.find((task) => task.id === selectedTaskId);
+
+    const currentSessionTitle = sessionLabel.trim()
+        || selectedTask?.title
+        || selectedCourse?.courseName
+        || 'Untitled session';
+
+    const currentType = SESSION_TYPES.find((type) => type.key === sessionType) || SESSION_TYPES[0];
+
+    const completedSessionsCount = useMemo(
+        () => sessions.filter((session) => session.userId === user?.id && session.completed).length,
+        [sessions, user?.id]
+    );
+    const deepFocusSessionsCount = useMemo(
+        () => sessions.filter((session) => session.userId === user?.id && session.completed && session.mode === 'deep').length,
+        [sessions, user?.id]
+    );
+    const todayKey = getToday();
+    const todaySessions = useMemo(
+        () => sessions.filter((session) => session.userId === user?.id && session.completed && session.createdAt && getDateKeyInTurkey(session.createdAt) === todayKey),
+        [sessions, todayKey, user?.id]
+    );
+    const todayFocusMinutes = todaySessions.reduce((sum, session) => sum + (session.actualMinutes || 0), 0);
+
+    const totalDuration = getDuration(sessionType);
+    const runningProgress = totalDuration > 0 ? ((totalDuration - timeLeft) / totalDuration) * 100 : 0;
+    const selectedMinutes = Math.max(1, Math.round(timeLeft / 60));
+    const idleProgress = (selectedMinutes / getMaxMinutesForType(sessionType)) * 100;
+    const progress = isRunning ? runningProgress : idleProgress;
+    const circumference = 2 * Math.PI * TIMER_RADIUS;
+    const strokeDashoffset = Number.isNaN(progress) ? 0 : circumference - (progress / 100) * circumference;
+    const angleInRadians = ((progress / 100) * 360 - 90) * (Math.PI / 180);
+    const handleX = TIMER_CENTER + TIMER_RADIUS * Math.cos(angleInRadians);
+    const handleY = TIMER_CENTER + TIMER_RADIUS * Math.sin(angleInRadians);
+    const clock = formatClock(timeLeft);
+
+    const skyState = useMemo(
+        () => getSkySummary({
+            sessionsCompleted: completedSessionsCount,
+            streak: user?.streakCount || 0,
+            totalMinutes: user?.totalFocusMinutes || 0,
+            focusProgress: isRunning && sessionType === 'focus' ? runningProgress : 0,
+        }),
+        [completedSessionsCount, isRunning, runningProgress, sessionType, user?.streakCount, user?.totalFocusMinutes]
+    );
+
+    const heroStats = [
+        {
+            label: 'Sessions today',
+            value: todaySessions.length,
+            detail: 'Completed study blocks logged today.',
+        },
+        {
+            label: 'Deep focus stars',
+            value: deepFocusSessionsCount,
+            detail: 'Deep sessions permanently brighten your sky.',
+        },
+        {
+            label: 'Focus time today',
+            value: minutesToDisplay(todayFocusMinutes),
+            detail: 'Total focused minutes accumulated today.',
+        },
+        {
+            label: 'Current streak',
+            value: `${user?.streakCount || 0}d`,
+            detail: 'Streaks amplify rare celestial effects.',
+        },
+    ];
+
+    const getDynamicColor = useCallback(() => {
+        if (sessionType !== 'focus') return currentType.color;
+
+        if (selectedCourse?.color) return selectedCourse.color;
+
+        const ratio = selectedMinutes / 120;
+        const r = Math.round(79 + (ratio * (168 - 79)));
+        const g = Math.round(110 - (ratio * 110));
+        const b = Math.round(247 - (ratio * (247 - 215)));
+        return `rgb(${r}, ${g}, ${b})`;
+    }, [currentType.color, selectedCourse?.color, selectedMinutes, sessionType]);
+
+    const activeColor = getDynamicColor();
+
+    useEffect(() => {
+        const timer = setTimeout(() => setIsLoading(false), 700);
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('studywithme_pomodoro_settings', JSON.stringify({
+            ...safeSettings,
+            focusDuration: safeSettings.workTime,
+            shortBreakDuration: safeSettings.shortBreakTime,
+            longBreakDuration: safeSettings.longBreakTime,
+            sessionsUntilLongBreak: safeSettings.roundsBeforeLongBreak,
+        }));
+    }, [safeSettings]);
+
+    useEffect(() => {
+        setSelectedPreset(detectPreset(safeSettings));
+    }, [safeSettings]);
+
+    useEffect(() => {
+        if (!isRunning) {
+            setTimeLeft(getDuration(sessionType));
+        }
+    }, [getDuration, isRunning, sessionType]);
+
+    const updateDurationSetting = useCallback((type, value) => {
+        const nextMinutes = Math.max(1, Math.min(getMaxMinutesForType(type), Number(value) || 1));
+        setSelectedPreset('custom');
+        setSettings((previous) => {
+            const next = { ...previous };
+
+            if (type === 'focus') {
+                next.workTime = nextMinutes;
+                next.focusDuration = nextMinutes;
+            } else if (type === 'shortBreak') {
+                next.shortBreakTime = nextMinutes;
+                next.shortBreakDuration = nextMinutes;
+            } else {
+                next.longBreakTime = nextMinutes;
+                next.longBreakDuration = nextMinutes;
+            }
+
+            return next;
+        });
+
+        if (!isRunning && sessionType === type) {
+            targetEndTimeRef.current = null;
+            setTimeLeft(nextMinutes * 60);
+        }
+    }, [isRunning, sessionType]);
+
+    const updateRoundSetting = useCallback((value) => {
+        const nextRounds = Math.max(2, Math.min(8, Number(value) || 2));
+        setSelectedPreset('custom');
+        setSettings((previous) => ({
+            ...previous,
+            roundsBeforeLongBreak: nextRounds,
+            sessionsUntilLongBreak: nextRounds,
+        }));
+    }, []);
+
+    const applyPreset = (presetKey) => {
+        if (presetKey === 'custom') {
+            setSelectedPreset('custom');
+            return;
+        }
+
+        const preset = PRESET_OPTIONS.find((item) => item.key === presetKey);
+        if (!preset?.settings) return;
+
+        setSelectedPreset(preset.key);
+        setSettings((previous) => ({
+            ...previous,
+            ...preset.settings,
+            focusDuration: preset.settings.workTime,
+            shortBreakDuration: preset.settings.shortBreakTime,
+            longBreakDuration: preset.settings.longBreakTime,
+            sessionsUntilLongBreak: preset.settings.roundsBeforeLongBreak,
+        }));
+
+        if (!isRunning) {
+            targetEndTimeRef.current = null;
+            const nextMinutes = sessionType === 'focus'
+                ? preset.settings.workTime
+                : sessionType === 'shortBreak'
+                    ? preset.settings.shortBreakTime
+                    : preset.settings.longBreakTime;
+            setTimeLeft(nextMinutes * 60);
+        }
+    };
 
     const handleSessionComplete = useCallback(() => {
         setIsRunning(false);
+        targetEndTimeRef.current = null;
 
-        // Play success bell
         if (!bellAudioRef.current) {
             bellAudioRef.current = new Audio('https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3');
         }
-        bellAudioRef.current.play().catch(e => console.log('Audio error:', e));
+        bellAudioRef.current.play().catch(() => { });
 
         if (sessionType === 'focus') {
             const plannedMinutes = safeSettings.workTime;
             const actualMinutes = plannedMinutes;
-            const course = courses.find((c) => c.id === selectedCourseId);
-            const task = tasks.find((t) => t.id === selectedTaskId);
+            const sessionDate = getToday();
+            const course = userCourses.find((item) => item.id === selectedCourseId);
+            const task = openTasks.find((item) => item.id === selectedTaskId);
 
             const newSession = addSession({
                 userId: user.id,
@@ -121,20 +410,20 @@ export default function PomodoroPage() {
                 plannedMinutes,
                 actualMinutes,
                 completed: true,
+                mode: experienceMode,
+                label: currentSessionTitle,
             });
 
-            // Award coins + XP
             const newCoins = (user.coinBalance || 0) + COINS_PER_SESSION;
             const newXP = (user.xp || 0) + XP_PER_SESSION;
 
-            // Update streak
-            const today = new Date().toISOString().split('T')[0];
             let newStreak = user.streakCount || 0;
-            if (user.lastActiveDate !== today) {
+            if (user.lastActiveDate !== sessionDate) {
                 const yesterday = new Date();
                 yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayStr = yesterday.toISOString().split('T')[0];
-                if (user.lastActiveDate === yesterdayStr || !user.lastActiveDate) {
+                const yesterdayKey = getDateKeyInTurkey(yesterday);
+
+                if (user.lastActiveDate === yesterdayKey || !user.lastActiveDate) {
                     newStreak += 1;
                 } else {
                     newStreak = 1;
@@ -142,6 +431,7 @@ export default function PomodoroPage() {
             }
 
             const weekKey = getWeekKey();
+            const nextTotalFocusMinutes = (user?.totalFocusMinutes || 0) + actualMinutes;
             const weeklyFocusMinutes = user?.weeklyFocusWeekKey === weekKey
                 ? (user?.weeklyFocusMinutes || 0) + actualMinutes
                 : actualMinutes;
@@ -150,8 +440,8 @@ export default function PomodoroPage() {
                 coinBalance: newCoins,
                 xp: newXP,
                 streakCount: newStreak,
-                lastActiveDate: today,
-                totalFocusMinutes: (user?.totalFocusMinutes || 0) + actualMinutes,
+                lastActiveDate: sessionDate,
+                totalFocusMinutes: nextTotalFocusMinutes,
                 weeklyFocusMinutes,
                 weeklyFocusWeekKey: weekKey,
             });
@@ -161,13 +451,12 @@ export default function PomodoroPage() {
                 currentSessionTitle: '',
                 weeklyFocusMinutes,
                 weeklyFocusWeekKey: weekKey,
-                totalFocusMinutes: (user?.totalFocusMinutes || 0) + actualMinutes,
+                totalFocusMinutes: nextTotalFocusMinutes,
                 xp: newXP,
                 streakCount: newStreak,
-                lastActiveDate: today,
+                lastActiveDate: sessionDate,
             }).catch((error) => console.error('Failed to update study room presence', error));
 
-            // Show completion screen
             setShowCompletion({
                 sessionId: newSession.id,
                 coins: COINS_PER_SESSION,
@@ -176,38 +465,33 @@ export default function PomodoroPage() {
                 taskName: task?.title || null,
                 minutes: actualMinutes,
                 streak: newStreak,
+                mode: experienceMode,
+                label: currentSessionTitle,
             });
             setSessionNote('');
 
-            // Check badges
             const allSessions = [...sessions, newSession];
             const stats = getSessionStats(allSessions, courses);
             stats.streak = newStreak;
-            const existingKeys = badges.map((b) => b.badgeKey);
+            const existingKeys = badges.map((badge) => badge.badgeKey);
             const newBadges = checkNewBadges(stats, existingKeys);
+
             for (const badge of newBadges) {
                 addBadge({ userId: user.id, badgeKey: badge.badgeKey });
                 setTimeout(() => {
                     addToast({ type: 'reward', icon: badge.icon, message: `Badge unlocked: ${badge.badgeName}!` });
-                }, 2000);
+                }, 1200);
             }
 
-            // Move to break
-            if (round >= safeSettings.roundsBeforeLongBreak) {
-                setSessionType('longBreak');
-                setRound(1);
-                setTimeLeft(getDuration('longBreak'));
-            } else {
-                setSessionType('shortBreak');
-                setRound((r) => r + 1);
-                setTimeLeft(getDuration('shortBreak'));
-            }
+            const nextSession = getNextSessionState(sessionType, round, safeSettings);
+            setSessionType(nextSession.type);
+            setRound(nextSession.round);
+            setTimeLeft(getDuration(nextSession.type));
         } else {
             setSessionType('focus');
-            setIsFocusMode(false);
             setTimeLeft(getDuration('focus'));
             setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
-            addToast({ type: 'success', icon: '☕', message: 'Break over. Ready to focus!' });
+            addToast({ type: 'success', icon: '☕', message: 'Break complete. Sirius is ready for another focus block.' });
         }
     }, [
         addBadge,
@@ -215,27 +499,30 @@ export default function PomodoroPage() {
         addToast,
         badges,
         courses,
+        experienceMode,
+        getDuration,
+        openTasks,
         round,
-        safeSettings.roundsBeforeLongBreak,
-        safeSettings.workTime,
+        safeSettings,
         selectedCourseId,
         selectedTaskId,
-        sessions,
         sessionType,
+        sessions,
         setPresence,
-        tasks,
         updateUser,
         user,
+        userCourses,
+        currentSessionTitle,
     ]);
 
     const syncTimeLeft = useCallback(() => {
         if (!targetEndTimeRef.current) return false;
 
         const remainingMs = targetEndTimeRef.current - Date.now();
+
         if (remainingMs <= 0) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
-            targetEndTimeRef.current = null;
             setTimeLeft(0);
             handleSessionComplete();
             return true;
@@ -254,6 +541,7 @@ export default function PomodoroPage() {
             syncTimeLeft();
             intervalRef.current = setInterval(syncTimeLeft, 1000);
         }
+
         return () => {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
@@ -263,73 +551,43 @@ export default function PomodoroPage() {
     useEffect(() => {
         if (!isRunning) return undefined;
 
-        const handleVisibilityChange = () => {
+        const handleVisibilityRefresh = () => {
             if (!document.hidden) {
                 syncTimeLeft();
             }
         };
 
-        window.addEventListener('focus', handleVisibilityChange);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleVisibilityRefresh);
+        document.addEventListener('visibilitychange', handleVisibilityRefresh);
 
         return () => {
-            window.removeEventListener('focus', handleVisibilityChange);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleVisibilityRefresh);
+            document.removeEventListener('visibilitychange', handleVisibilityRefresh);
         };
     }, [isRunning, syncTimeLeft]);
 
-    // Auto focus mode when running
     useEffect(() => {
-        if (isRunning && sessionType === 'focus') {
-            setIsFocusMode(true);
-        }
-    }, [isRunning, sessionType]);
+        if (!isRunning || experienceMode !== 'deep') return undefined;
 
-    const handleStartOrResume = () => {
-        setShowCompletion(null);
-        setIsRunning(true);
-    };
+        const handleLeave = () => {
+            if (document.hidden) {
+                setTabSwitchWarning(true);
+            } else {
+                setTimeout(() => setTabSwitchWarning(false), 1600);
+            }
+        };
 
-    const handlePause = () => {
-        if (targetEndTimeRef.current) {
-            const remainingMs = Math.max(targetEndTimeRef.current - Date.now(), 0);
-            setTimeLeft(Math.ceil(remainingMs / 1000));
-        }
-        targetEndTimeRef.current = null;
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        setIsRunning(false);
-    };
-
-    const resetTimer = () => {
-        setIsRunning(false);
-        setIsFocusMode(false);
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        targetEndTimeRef.current = null;
-        setRound(1);
-        setSessionType('focus');
-        setTimeLeft(getDuration('focus'));
-        setShowCompletion(null);
-        setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
-    };
-
-    const exitFocusMode = () => {
-        setIsFocusMode(false);
-        if (!isRunning) {
-            setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
-        }
-    };
+        document.addEventListener('visibilitychange', handleLeave);
+        return () => document.removeEventListener('visibilitychange', handleLeave);
+    }, [experienceMode, isRunning]);
 
     useEffect(() => {
         if (!user?.id) return;
 
         if (isRunning && sessionType === 'focus') {
-            const course = courses.find((item) => item.id === selectedCourseId);
-            const sessionTitle = course?.courseName || 'Focus Session';
             setPresence({
                 focusingNow: true,
-                currentSessionTitle: sessionTitle,
+                currentSessionTitle,
             }).catch((error) => console.error('Failed to mark user as focusing', error));
             return;
         }
@@ -338,455 +596,886 @@ export default function PomodoroPage() {
             focusingNow: false,
             currentSessionTitle: '',
         }).catch(() => { });
-    }, [user?.id, isRunning, sessionType, selectedCourseId, courses, setPresence]);
+    }, [currentSessionTitle, isRunning, sessionType, setPresence, user?.id]);
 
-    // Circular Slider Drag Logic
-    const handleDrag = useCallback((e) => {
+    const handleStartOrResume = () => {
+        setShowCompletion(null);
+        setTabSwitchWarning(false);
+        setIsRunning(true);
+    };
+
+    const handlePause = useCallback(() => {
+        if (targetEndTimeRef.current) {
+            const remainingMs = Math.max(targetEndTimeRef.current - Date.now(), 0);
+            setTimeLeft(Math.ceil(remainingMs / 1000));
+        }
+
+        targetEndTimeRef.current = null;
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        setIsRunning(false);
+    }, []);
+
+    const resetTimer = () => {
+        handlePause();
+        setRound(1);
+        setSessionType('focus');
+        setTimeLeft(getDuration('focus'));
+        setShowCompletion(null);
+        setTabSwitchWarning(false);
+        setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
+    };
+
+    const handleSkip = () => {
+        handlePause();
+        setShowCompletion(null);
+
+        const nextSession = getNextSessionState(sessionType, round, safeSettings);
+        setSessionType(nextSession.type);
+        setRound(nextSession.round);
+        setTimeLeft(getDuration(nextSession.type));
+
+        if (sessionType === 'focus') {
+            addToast({ type: 'success', icon: '⏭️', message: 'Focus block skipped. Sirius moved you to the next recovery phase.' });
+        } else {
+            addToast({ type: 'success', icon: '⏭️', message: 'Break skipped. Your next focus block is ready.' });
+        }
+    };
+
+    const startExitHold = () => {
+        if (exitHoldIntervalRef.current) return;
+
+        if (!isRunning) {
+            setExperienceMode('normal');
+            return;
+        }
+
+        const startedAt = Date.now();
+        exitHoldIntervalRef.current = setInterval(() => {
+            const elapsed = Date.now() - startedAt;
+            const nextProgress = Math.min(100, (elapsed / HOLD_TO_EXIT_MS) * 100);
+            setExitHoldProgress(nextProgress);
+
+            if (nextProgress >= 100) {
+                clearInterval(exitHoldIntervalRef.current);
+                exitHoldIntervalRef.current = null;
+                handlePause();
+                setExperienceMode('normal');
+                setExitHoldProgress(0);
+                setTabSwitchWarning(false);
+            }
+        }, 16);
+    };
+
+    const cancelExitHold = () => {
+        if (!exitHoldIntervalRef.current) return;
+        clearInterval(exitHoldIntervalRef.current);
+        exitHoldIntervalRef.current = null;
+        setExitHoldProgress(0);
+    };
+
+    const handleDrag = useCallback((event) => {
         if (isRunning || !isDragging || !svgRef.current) return;
 
         const svg = svgRef.current;
-        const pt = svg.createSVGPoint();
+        const point = svg.createSVGPoint();
+        const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+        const clientY = event.touches ? event.touches[0].clientY : event.clientY;
 
-        // Support touch and mouse
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        point.x = clientX;
+        point.y = clientY;
 
-        pt.x = clientX;
-        pt.y = clientY;
-        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+        const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
+        const dx = svgPoint.x - TIMER_CENTER;
+        const dy = svgPoint.y - TIMER_CENTER;
 
-        // Calculate angle from center (160,160)
-        const dx = svgP.x - TIMER_CENTER;
-        const dy = svgP.y - TIMER_CENTER;
         let angle = Math.atan2(dy, dx);
-
-        // Transform standard canvas angle to top-zero, clockwise
-        angle = angle + (Math.PI / 2);
+        angle += Math.PI / 2;
         if (angle < 0) angle += 2 * Math.PI;
 
         const maxMinutes = getMaxMinutesForType(sessionType);
+        let nextMinutes = Math.round((angle / (2 * Math.PI)) * maxMinutes);
+        if (nextMinutes < 1) nextMinutes = 1;
 
-        // Map angle to minutes
-        let selectedMinutes = Math.round((angle / (2 * Math.PI)) * maxMinutes);
-        if (selectedMinutes < 1) selectedMinutes = 1;
+        setTimeLeft(nextMinutes * 60);
+        setSelectedPreset('custom');
+        setSettings((previous) => {
+            const next = { ...previous };
 
-        // Update local settings temporarily while dragging for fluid UI
-        setTimeLeft(selectedMinutes * 60);
-
-        setSettings(prev => {
-            const newSettings = { ...prev };
             if (sessionType === 'focus') {
-                newSettings.workTime = selectedMinutes;
-                newSettings.focusDuration = selectedMinutes;
+                next.workTime = nextMinutes;
+                next.focusDuration = nextMinutes;
             } else if (sessionType === 'shortBreak') {
-                newSettings.shortBreakTime = selectedMinutes;
-                newSettings.shortBreakDuration = selectedMinutes;
+                next.shortBreakTime = nextMinutes;
+                next.shortBreakDuration = nextMinutes;
             } else {
-                newSettings.longBreakTime = selectedMinutes;
-                newSettings.longBreakDuration = selectedMinutes;
+                next.longBreakTime = nextMinutes;
+                next.longBreakDuration = nextMinutes;
             }
-            return newSettings;
+
+            return next;
         });
 
         targetEndTimeRef.current = null;
-
-    }, [isRunning, isDragging, sessionType]);
+    }, [isDragging, isRunning, sessionType]);
 
     const beginDrag = useCallback((event) => {
         if (isRunning || !svgRef.current) return;
 
         const svg = svgRef.current;
-        const pt = svg.createSVGPoint();
+        const point = svg.createSVGPoint();
         const clientX = event.touches ? event.touches[0].clientX : event.clientX;
         const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-        pt.x = clientX;
-        pt.y = clientY;
-        const svgPoint = pt.matrixTransform(svg.getScreenCTM().inverse());
+
+        point.x = clientX;
+        point.y = clientY;
+
+        const svgPoint = point.matrixTransform(svg.getScreenCTM().inverse());
         const dx = svgPoint.x - TIMER_CENTER;
         const dy = svgPoint.y - TIMER_CENTER;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        if (Math.abs(distance - TIMER_RADIUS) > 22) {
-            return;
-        }
-
-        if (event.cancelable) {
-            event.preventDefault();
-        }
+        if (Math.abs(distance - TIMER_RADIUS) > 24) return;
+        if (event.cancelable) event.preventDefault();
 
         setIsDragging(true);
     }, [isRunning]);
 
     useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleDrag);
-            window.addEventListener('mouseup', () => setIsDragging(false));
-            window.addEventListener('touchmove', handleDrag, { passive: false });
-            window.addEventListener('touchend', () => setIsDragging(false));
-        }
+        if (!isDragging) return undefined;
+
+        const stopDrag = () => setIsDragging(false);
+        window.addEventListener('mousemove', handleDrag);
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchmove', handleDrag, { passive: false });
+        window.addEventListener('touchend', stopDrag);
+
         return () => {
             window.removeEventListener('mousemove', handleDrag);
-            window.removeEventListener('mouseup', () => setIsDragging(false));
+            window.removeEventListener('mouseup', stopDrag);
             window.removeEventListener('touchmove', handleDrag);
-            window.removeEventListener('touchend', () => setIsDragging(false));
+            window.removeEventListener('touchend', stopDrag);
         };
-    }, [isDragging, handleDrag]);
+    }, [handleDrag, isDragging]);
 
-    const totalDuration = getDuration(sessionType);
-    const selectedMinutes = Math.max(1, Math.round(timeLeft / 60));
-    const idleProgress = (selectedMinutes / getMaxMinutesForType(sessionType)) * 100;
-    const runningProgress = ((totalDuration - timeLeft) / totalDuration) * 100;
-    const progress = isRunning ? runningProgress : idleProgress;
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-
-    // Dynamic color gradient based on time (focus only)
-    const getDynamicColor = () => {
-        if (sessionType !== 'focus') return currentType.color;
-
-        const currentCourse = courses.find(c => c.id === selectedCourseId);
-        if (currentCourse && currentCourse.color) {
-            return currentCourse.color;
-        }
-
-        const maxMinutes = 120;
-        const ratio = minutes / maxMinutes;
-
-        // From blue to deep purple/magenta based on length
-        const r = Math.round(79 + (ratio * (168 - 79)));
-        const g = Math.round(110 - (ratio * 110));
-        const b = Math.round(247 - (ratio * (247 - 215)));
-
-        return `rgb(${r}, ${g}, ${b})`;
-    };
-
-    const activeColor = getDynamicColor();
-
-    const currentType = SESSION_TYPES.find((t) => t.key === sessionType);
-    const userCourses = courses.filter((c) => c.userId === user?.id);
-    const courseTasks = tasks.filter((t) => t.userId === user?.id && t.courseId === selectedCourseId && !t.completed);
-    const completedSessionsCount = useMemo(
-        () => sessions.filter((session) => session.userId === user?.id && session.completed).length,
-        [sessions, user?.id]
-    );
-
-    const circumference = 2 * Math.PI * TIMER_RADIUS;
-    // Map progress to circle offset, considering it starts from top
-    const strokeDashoffset = isNaN(progress) ? 0 : circumference - (progress / 100) * circumference;
-
-    // Handle positions
-    const angleInRadians = ((progress / 100) * 360 - 90) * (Math.PI / 180);
-    const handleX = TIMER_CENTER + TIMER_RADIUS * Math.cos(angleInRadians);
-    const handleY = TIMER_CENTER + TIMER_RADIUS * Math.sin(angleInRadians);
-
-    const companion = getCompanionStage(getLevelFromXP(user?.xp || 0).level);
-    const isDark = (user?.theme || 'calm') === 'dark';
+    useEffect(() => () => {
+        clearInterval(intervalRef.current);
+        clearInterval(exitHoldIntervalRef.current);
+    }, []);
 
     if (isLoading) {
         return (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto flex flex-col items-center justify-center pt-16">
-                <div className="w-[300px] h-[300px] rounded-full animate-pulse shadow-sm" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
-                <div className="h-5 w-48 rounded-full animate-pulse mt-8 mb-4" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
-                <div className="h-10 w-full max-w-sm rounded-xl animate-pulse" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }} />
-            </motion.div>
-        );
-    }
-
-    // Focus mode (full screen dark overlay)
-    if (isFocusMode && isRunning) {
-        return (
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="focus-mode"
-            >
-                <button
-                    onClick={exitFocusMode}
-                    className="absolute top-6 right-6 text-white/30 hover:text-white/60 transition-colors text-sm z-10"
-                >
-                    Exit Focus Mode
-                </button>
-
-                {/* Cosmic Background Glow */}
-                <div
-                    className="absolute inset-0 opacity-40 mix-blend-screen pointer-events-none transition-all duration-[3000ms]"
-                    style={{
-                        background: `radial-gradient(circle at 50% 50%, ${activeColor}30 0%, transparent 60%)`
-                    }}
-                />
-
-                {/* Minimal Header instead of Ambient Sounds */}
-                <div className="absolute top-6 left-6 z-10">
-                    <div className="text-white/40 text-sm font-medium">✨ Kozmik Kütüphane Aktif</div>
-                </div>
-
-                <div className="text-center z-10 relative">
-                    <motion.div animate={{ scale: isRunning ? 1.05 : 1 }} transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }} className="text-6xl mb-8 drop-shadow-2xl">
-                        {companion.emoji}
-                    </motion.div>
-                    <div className="relative w-[340px] h-[340px] mx-auto">
-                        <svg ref={svgRef} className="w-full h-full transform -rotate-90 pointer-events-none" viewBox="0 0 320 320">
-                            <circle cx="160" cy="160" r="140" fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="4" />
-                            <motion.circle
-                                cx="160" cy="160" r="140"
-                                fill="none"
-                                stroke={activeColor}
-                                strokeWidth="8"
-                                strokeLinecap="round"
-                                strokeDasharray={circumference}
-                                animate={{ strokeDashoffset }}
-                                transition={{ duration: isDragging ? 0 : 0.5 }}
-                            />
-                        </svg>
-
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <motion.div
-                                animate={{ scale: isRunning ? [1, 1.02, 1] : 1, color: isRunning ? '#ffffff' : '#f8fafc' }}
-                                transition={{ duration: 2, repeat: Infinity }}
-                                className="text-7xl font-light tabular-nums tracking-tighter"
-                            >
-                                {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
-                            </motion.div>
-                            <div className="text-sm font-medium mt-3" style={{ color: activeColor }}>
-                                {currentType.label} · Round {round}
-                            </div>
-                        </div>
+            <div className="mx-auto max-w-6xl">
+                <div className="mb-8 h-24 rounded-[28px] bg-slate-100/80 animate-pulse" />
+                <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+                    <div className="h-[520px] rounded-[32px] bg-slate-100/80 animate-pulse" />
+                    <div className="space-y-6">
+                        <div className="h-56 rounded-[28px] bg-slate-100/80 animate-pulse" />
+                        <div className="h-56 rounded-[28px] bg-slate-100/80 animate-pulse" />
                     </div>
                 </div>
-            </motion.div>
+            </div>
         );
     }
 
     return (
-        <div className="max-w-2xl mx-auto">
-            {/* Completion Screen */}
+        <div className={experienceMode === 'deep' ? 'relative -mx-4 sm:mx-0' : 'mx-auto max-w-6xl'}>
             <AnimatePresence>
                 {showCompletion && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
+                        initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm"
+                        exit={{ opacity: 0, scale: 0.98 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-md"
                         onClick={() => setShowCompletion(null)}
                     >
                         <motion.div
                             initial={{ y: 20 }}
                             animate={{ y: 0 }}
-                            className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center mx-4"
-                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-md rounded-[32px] border border-white/70 bg-white/95 p-7 shadow-[0_30px_90px_rgba(15,23,42,0.28)]"
+                            onClick={(event) => event.stopPropagation()}
                         >
-                            <motion.div
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                                className="text-5xl mb-4 animate-celebration"
-                            >
-                                🎉
-                            </motion.div>
-                            <h2 className="text-xl font-bold text-[#111827] mb-1">Session Complete!</h2>
-
-                            {showCompletion.courseName && (
-                                <p className="text-sm text-slate-400">
-                                    {showCompletion.courseName}
-                                    {showCompletion.taskName && ` · ${showCompletion.taskName}`}
-                                </p>
-                            )}
-
-                            <div className="my-4 py-4 px-6 bg-slate-50 rounded-2xl">
-                                <div className="text-2xl font-bold text-slate-500">{minutesToDisplay(showCompletion.minutes)}</div>
-                                <div className="text-xs text-slate-400 mt-0.5">Focus Time</div>
+                            <div className="mb-5 flex items-start justify-between gap-4">
+                                <div>
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
+                                        Session complete
+                                    </div>
+                                    <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                                        Sirius saved a new sky upgrade
+                                    </h2>
+                                    <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                                        {showCompletion.mode === 'deep'
+                                            ? 'This deep focus block permanently brightened your personal sky.'
+                                            : 'This completed session added steady progress to your focus record.'}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl bg-sky-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                                    {showCompletion.mode === 'deep' ? 'Deep focus' : 'Normal mode'}
+                                </div>
                             </div>
 
-                            <div className="mb-4 text-left">
-                                <label className="label text-[11px] mb-1">Study Session Note</label>
+                            <div className="rounded-[28px] border border-slate-100 bg-slate-50/80 p-5">
+                                <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                    Session label
+                                </div>
+                                <div className="mt-1 text-lg font-semibold text-slate-900">{showCompletion.label}</div>
+                                {(showCompletion.courseName || showCompletion.taskName) && (
+                                    <div className="mt-2 text-sm text-slate-500">
+                                        {[showCompletion.courseName, showCompletion.taskName].filter(Boolean).join(' · ')}
+                                    </div>
+                                )}
+
+                                <div className="mt-5 grid grid-cols-3 gap-3">
+                                    <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
+                                        <div className="text-lg font-bold text-slate-900">+{showCompletion.coins}</div>
+                                        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Coins</div>
+                                    </div>
+                                    <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
+                                        <div className="text-lg font-bold text-slate-900">+{showCompletion.xp}</div>
+                                        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">XP</div>
+                                    </div>
+                                    <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
+                                        <div className="text-lg font-bold text-slate-900">{minutesToDisplay(showCompletion.minutes)}</div>
+                                        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Focus</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-5">
+                                <label className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                    Session note
+                                </label>
                                 <textarea
-                                    className="input text-[13px] resize-none h-[66px] !p-2.5"
-                                    placeholder="What did you accomplish? e.g. Reviewed integrals and solved 10 exercises"
+                                    className="input min-h-[96px] resize-none !rounded-[24px] !px-4 !py-3 text-sm"
+                                    placeholder="Capture what moved forward in this session."
                                     value={sessionNote}
-                                    onChange={(e) => setSessionNote(e.target.value)}
+                                    onChange={(event) => setSessionNote(event.target.value)}
                                 />
                             </div>
 
-                            <div className="flex justify-center gap-6 mb-5">
-                                <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.4, type: 'spring' }}
-                                    className="text-center"
+                            <div className="mt-6 flex items-center justify-between">
+                                <div className="text-sm font-medium text-slate-500">
+                                    Streak now <span className="font-bold text-slate-900">{showCompletion.streak}d</span>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        if (sessionNote.trim()) {
+                                            updateSession(showCompletion.sessionId, { note: sessionNote.trim() });
+                                        }
+                                        setShowCompletion(null);
+                                    }}
+                                    className="btn-primary justify-center rounded-2xl px-6 py-3"
                                 >
-                                    <div className="text-xl font-bold text-amber-500 animate-coin-pop">+{showCompletion.coins}</div>
-                                    <div className="text-[10px] text-slate-400">coins</div>
-                                </motion.div>
-                                <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.5, type: 'spring' }}
-                                    className="text-center"
-                                >
-                                    <div className="text-xl font-bold text-blue-500">+{showCompletion.xp}</div>
-                                    <div className="text-[10px] text-slate-400">XP</div>
-                                </motion.div>
-                                <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.6, type: 'spring' }}
-                                    className="text-center"
-                                >
-                                    <div className="text-xl font-bold text-orange-500">🔥 {showCompletion.streak}</div>
-                                    <div className="text-[10px] text-slate-400">streak</div>
-                                </motion.div>
+                                    Continue
+                                </button>
                             </div>
-
-                            <button
-                                onClick={() => {
-                                    if (sessionNote.trim()) {
-                                        updateSession(showCompletion.sessionId, { note: sessionNote.trim() });
-                                    }
-                                    setShowCompletion(null);
-                                }}
-                                className="btn-primary w-full justify-center py-3"
-                            >
-                                Continue
-                            </button>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Header */}
-            <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--theme-text, #1e293b)' }}>Pomodoro Timer</h1>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--theme-text-muted, #94a3b8)' }}>Stay focused, one session at a time</p>
-            </div>
-
-            {/* Session Type Tabs */}
-            <div className="flex justify-center mb-8">
-                <div className="flex bg-slate-100/80 rounded-2xl p-1 gap-0.5">
-                    {SESSION_TYPES.map((type) => (
-                        <button
-                            key={type.key}
-                            onClick={() => { if (!isRunning) setSessionType(type.key); }}
-                            className={`px-5 py-2 rounded-xl text-xs font-medium transition-all ${sessionType === type.key ? 'bg-white shadow-sm text-[#111827]' : 'text-slate-400 hover:text-slate-500'
-                                }`}
-                        >
-                            {type.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Timer Circle - Interactive SVG */}
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.2 }} className="flex justify-center mb-8">
-                <div className="relative w-[320px] h-[320px] select-none">
-                    <svg ref={svgRef} className={`w-full h-full ${!isRunning ? 'cursor-pointer' : ''}`} viewBox="0 0 320 320" onMouseDown={beginDrag} onTouchStart={beginDrag}>
-                        <circle cx={TIMER_CENTER} cy={TIMER_CENTER} r={TIMER_RADIUS} fill="none" stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)"} strokeWidth="12" />
-                        <motion.circle
-                            transform={`rotate(-90 ${TIMER_CENTER} ${TIMER_CENTER})`}
-                            cx={TIMER_CENTER} cy={TIMER_CENTER} r={TIMER_RADIUS}
-                            fill="none"
-                            stroke={activeColor}
-                            strokeWidth="12"
-                            strokeLinecap="round"
-                            strokeDasharray={circumference}
-                            animate={{ strokeDashoffset }}
-                            transition={{ duration: isDragging ? 0 : 0.5, ease: "easeOut" }}
-                            className={`${isDragging ? 'opacity-80' : 'opacity-100'}`}
-                        />
-                    </svg>
-
-                    {/* Draggable Handle */}
-                    {!isRunning && (
-                        <motion.div
-                            className="absolute z-10 w-8 h-8 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.1)] border-4 border-white cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
-                            style={{
-                                backgroundColor: activeColor,
-                                left: `${handleX}px`,
-                                top: `${handleY}px`,
-                                transform: 'translate(-50%, -50%)',
-                                touchAction: 'none'
-                            }}
-                            onMouseDown={beginDrag}
-                            onTouchStart={(e) => {
-                                beginDrag(e);
-                            }}
-                            animate={{ scale: isDragging ? 1.2 : 1 }}
-                        />
-                    )}
-
-                    {/* Interactive Center Button */}
-                    <button
-                        onClick={isRunning ? handlePause : handleStartOrResume}
-                        disabled={isDragging}
-                        className={`absolute inset-6 rounded-full flex flex-col items-center justify-center transition-all duration-300 ${isDark ? 'hover:bg-white/5' : 'hover:bg-black/5'} group`}
+            <AnimatePresence mode="wait">
+                {experienceMode === 'deep' ? (
+                    <motion.section
+                        key="deep-mode"
+                        initial={{ opacity: 0, scale: 0.985 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.985 }}
+                        className="relative min-h-[calc(100vh-5rem)] overflow-hidden rounded-[36px] border border-indigo-300/20 bg-[#081124] px-6 py-6 shadow-[0_30px_120px_rgba(8,17,36,0.55)]"
                     >
-                        <motion.div animate={{ scale: isRunning ? 1.05 : 1 }} transition={{ duration: 0.5, ease: "easeInOut", repeat: isRunning ? Infinity : 0, repeatType: "reverse" }} className="text-5xl mb-3 drop-shadow-sm pointer-events-none">
-                            {companion.emoji}
-                        </motion.div>
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(96,165,250,0.18),transparent_34%),radial-gradient(circle_at_20%_30%,rgba(129,140,248,0.16),transparent_22%),radial-gradient(circle_at_80%_70%,rgba(14,165,233,0.1),transparent_24%),linear-gradient(180deg,#07101f_0%,#0a1630_50%,#09152a_100%)]" />
+                        <div className="absolute inset-0 opacity-80">
+                            {DEEP_SPACE_STARS.map((star, index) => (
+                                <motion.span
+                                    key={`${star.left}-${star.top}-${index}`}
+                                    className="absolute rounded-full bg-white"
+                                    style={{
+                                        left: star.left,
+                                        top: star.top,
+                                        width: star.size,
+                                        height: star.size,
+                                        boxShadow: '0 0 14px rgba(191,219,254,0.8)',
+                                    }}
+                                    animate={{ opacity: [0.35, 1, 0.35], scale: [0.9, 1.2, 0.9] }}
+                                    transition={{ duration: 3.8 + star.delay, repeat: Infinity, ease: 'easeInOut' }}
+                                />
+                            ))}
+                        </div>
                         <motion.div
-                            animate={{ scale: isDragging ? 1.1 : 1 }}
-                            className="text-7xl font-black tabular-nums tracking-tighter pointer-events-none"
-                            style={{ color: 'var(--theme-text, #1e293b)' }}
-                        >
-                            {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
-                        </motion.div>
-                        <div className={`mt-5 rounded-full p-4 transition-colors pointer-events-none shadow-sm ${isRunning ? (isDark ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-800') : 'bg-white text-slate-800'}`} style={{ color: isRunning ? '' : activeColor, backgroundColor: isRunning ? '' : `${activeColor}20` }}>
-                            {isRunning ? (
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>
-                            ) : (
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" className="translate-x-0.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                            )}
+                            className="absolute left-1/2 top-[18%] h-64 w-64 -translate-x-1/2 rounded-full blur-3xl"
+                            animate={{ scale: [0.92, 1.04, 0.92], opacity: [0.35, 0.55, 0.35] }}
+                            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+                            style={{ background: `radial-gradient(circle, ${activeColor} 0%, rgba(59,130,246,0.08) 55%, transparent 78%)` }}
+                        />
+
+                        <div className="relative z-10 flex min-h-[calc(100vh-7rem)] flex-col">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">
+                                        Deep Focus Mode
+                                    </div>
+                                    <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300">
+                                        {currentType.label} · Round {round}
+                                    </div>
+                                </div>
+                                <div className="max-w-md rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
+                                    {currentSessionTitle}
+                                </div>
+                            </div>
+
+                            <AnimatePresence>
+                                {tabSwitchWarning && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        className="mx-auto mt-6 rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-100"
+                                    >
+                                        Stay in this Sirius space for a smoother deep focus session.
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="flex flex-1 flex-col items-center justify-center text-center">
+                                <div className="mb-6 max-w-xl">
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-200/70">
+                                        Your Sky responds in real time
+                                    </div>
+                                    <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                                        Enter your own focused Sirius space
+                                    </h1>
+                                    <p className="mt-4 text-base leading-relaxed text-slate-300/80">
+                                        The interface quiets down here. Finish the session and Sirius will save a new permanent star to your personal sky.
+                                    </p>
+                                </div>
+
+                                <div className="relative mx-auto flex h-[360px] w-[360px] items-center justify-center rounded-full border border-white/10 bg-white/5 shadow-[0_0_80px_rgba(59,130,246,0.16)] backdrop-blur-md">
+                                    <svg
+                                        ref={svgRef}
+                                        className={`absolute inset-0 h-full w-full -rotate-90 ${!isRunning ? 'cursor-pointer' : ''}`}
+                                        viewBox="0 0 320 320"
+                                        onMouseDown={beginDrag}
+                                        onTouchStart={beginDrag}
+                                    >
+                                        <circle
+                                            cx={TIMER_CENTER}
+                                            cy={TIMER_CENTER}
+                                            r={TIMER_RADIUS}
+                                            fill="none"
+                                            stroke="rgba(255,255,255,0.08)"
+                                            strokeWidth="8"
+                                        />
+                                        <motion.circle
+                                            cx={TIMER_CENTER}
+                                            cy={TIMER_CENTER}
+                                            r={TIMER_RADIUS}
+                                            fill="none"
+                                            stroke={activeColor}
+                                            strokeWidth="9"
+                                            strokeLinecap="round"
+                                            strokeDasharray={circumference}
+                                            animate={{ strokeDashoffset }}
+                                            transition={{ duration: 0.45 }}
+                                            style={{ filter: `drop-shadow(0 0 18px ${activeColor})` }}
+                                        />
+                                    </svg>
+
+                                    {!isRunning && (
+                                        <motion.button
+                                            type="button"
+                                            className="absolute z-10 h-8 w-8 rounded-full border-4 border-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+                                            style={{
+                                                backgroundColor: activeColor,
+                                                left: `${handleX}px`,
+                                                top: `${handleY}px`,
+                                                transform: 'translate(-50%, -50%)',
+                                            }}
+                                            onMouseDown={beginDrag}
+                                            onTouchStart={beginDrag}
+                                            animate={{ scale: isDragging ? 1.15 : 1 }}
+                                        />
+                                    )}
+
+                                    <div className="relative z-10 flex flex-col items-center">
+                                        <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-300/70">
+                                            {currentType.eyebrow}
+                                        </div>
+                                        <motion.div
+                                            animate={{ scale: isRunning ? [1, 1.015, 1] : 1 }}
+                                            transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+                                            className="mt-5 text-[88px] font-semibold tracking-[-0.08em] text-white"
+                                        >
+                                            {clock.minutes}:{clock.seconds}
+                                        </motion.div>
+                                        <div className="mt-3 text-sm font-medium text-slate-300/80">
+                                            {isRunning
+                                                ? `${skyState.starsLit} stars lit · ${skyState.constellationCount} constellation traces`
+                                                : 'Drag the ring before you start to tune the session length'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+                                    <button
+                                        onClick={isRunning ? handlePause : handleStartOrResume}
+                                        className="rounded-full bg-white px-8 py-3 text-sm font-semibold text-slate-900 shadow-[0_18px_45px_rgba(255,255,255,0.14)] transition-transform hover:-translate-y-0.5"
+                                    >
+                                        {isRunning ? 'Pause' : 'Start'}
+                                    </button>
+                                    <button
+                                        onMouseDown={startExitHold}
+                                        onMouseUp={cancelExitHold}
+                                        onMouseLeave={cancelExitHold}
+                                        onTouchStart={startExitHold}
+                                        onTouchEnd={cancelExitHold}
+                                        className="relative overflow-hidden rounded-full border border-white/15 px-7 py-3 text-sm font-semibold text-slate-100"
+                                    >
+                                        <span
+                                            className="absolute inset-y-0 left-0 bg-white/10 transition-[width]"
+                                            style={{ width: `${exitHoldProgress}%` }}
+                                        />
+                                        <span className="relative z-10">
+                                            {isRunning ? 'Hold to exit focus' : 'Return to dashboard'}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </button>
-                </div>
-            </motion.div>
+                    </motion.section>
+                ) : (
+                    <motion.section
+                        key="normal-mode"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="mx-auto max-w-6xl"
+                    >
+                        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                            <div className="max-w-2xl">
+                                <div className="inline-flex rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-600 shadow-sm">
+                                    Sirius Pomodoro
+                                </div>
+                                <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-900">
+                                    A premium focus console for the way you actually study
+                                </h1>
+                                <p className="mt-4 text-base leading-relaxed text-slate-500">
+                                    Normal Mode keeps your study day organized with tasks, presets, and clean timer controls. Deep Focus Mode strips the experience down into an immersive Sirius space when you want to disappear into the work.
+                                </p>
+                            </div>
 
-            {/* Sub Controls */}
-            <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="flex justify-center gap-3 mb-8">
-                <button onClick={isRunning ? handlePause : handleStartOrResume} className="btn-primary px-8 font-semibold rounded-2xl py-2.5 min-w-[112px] justify-center">
-                    {isRunning ? 'Pause' : 'Start'}
-                </button>
-                <button onClick={resetTimer} className="btn-secondary px-8 font-semibold rounded-2xl py-2.5">Reset</button>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mb-6">
-                <YourSkyScene
-                    compact
-                    sessionsCompleted={completedSessionsCount}
-                    streak={user?.streakCount || 0}
-                    totalMinutes={user?.totalFocusMinutes || 0}
-                    focusProgress={isRunning && sessionType === 'focus' ? runningProgress : 0}
-                    className="card mb-6"
-                />
-            </motion.div>
-
-            {/* Course/Task Link */}
-            <div className="card max-w-md mx-auto mb-4">
-                <div className="space-y-3">
-                    <div>
-                        <label className="label">Link to Course</label>
-                        <select
-                            className="input"
-                            value={selectedCourseId}
-                            onChange={(e) => { setSelectedCourseId(e.target.value); setSelectedTaskId(''); }}
-                            disabled={isRunning}
-                        >
-                            <option value="">No course</option>
-                            {userCourses.map((c) => (<option key={c.id} value={c.id}>{c.icon} {c.courseName}</option>))}
-                        </select>
-                    </div>
-                    {selectedCourseId && courseTasks.length > 0 && (
-                        <div>
-                            <label className="label">Link to Task (optional)</label>
-                            <select className="input" value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} disabled={isRunning}>
-                                <option value="">No task</option>
-                                {courseTasks.map((t) => (<option key={t.id} value={t.id}>{t.title}</option>))}
-                            </select>
+                            <div className="inline-flex rounded-full border border-slate-200 bg-white/80 p-1.5 shadow-sm">
+                                <button
+                                    onClick={() => setExperienceMode('normal')}
+                                    className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm"
+                                >
+                                    Normal Mode
+                                </button>
+                                <button
+                                    onClick={() => setExperienceMode('deep')}
+                                    className="rounded-full px-5 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:text-slate-900"
+                                >
+                                    Deep Focus Mode
+                                </button>
+                            </div>
                         </div>
-                    )}
-                </div>
-            </div>
 
+                        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                            <div className="space-y-6">
+                                <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white/80 shadow-[0_30px_70px_rgba(148,163,184,0.12)] backdrop-blur-md">
+                                    <div className="border-b border-slate-100 px-6 py-5">
+                                        <div className="flex flex-wrap items-start justify-between gap-4">
+                                            <div>
+                                                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
+                                                    {currentType.eyebrow}
+                                                </div>
+                                                <h2 className="mt-2 text-2xl font-semibold text-slate-900">
+                                                    {currentSessionTitle}
+                                                </h2>
+                                                <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
+                                                    {currentType.description}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 px-4 py-3">
+                                                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                                    Current cadence
+                                                </div>
+                                                <div className="mt-1 text-sm font-semibold text-slate-900">
+                                                    {safeSettings.workTime} / {safeSettings.shortBreakTime} / {safeSettings.longBreakTime}
+                                                </div>
+                                                <div className="mt-1 text-xs text-slate-500">
+                                                    Long break after {safeSettings.roundsBeforeLongBreak} focus rounds
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
+                                    <div className="px-6 pb-7 pt-6">
+                                        <div className="mb-6 flex flex-wrap items-center gap-2">
+                                            {SESSION_TYPES.map((type) => (
+                                                <button
+                                                    key={type.key}
+                                                    onClick={() => {
+                                                        if (!isRunning) {
+                                                            setSessionType(type.key);
+                                                            setShowCompletion(null);
+                                                            targetEndTimeRef.current = null;
+                                                        }
+                                                    }}
+                                                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${sessionType === type.key
+                                                        ? 'bg-slate-900 text-white shadow-sm'
+                                                        : 'bg-slate-100/80 text-slate-500 hover:bg-slate-200 hover:text-slate-900'
+                                                        }`}
+                                                >
+                                                    {type.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                                            <div className="flex justify-center">
+                                                <div className="relative h-[320px] w-[320px] select-none">
+                                                    <svg
+                                                        ref={svgRef}
+                                                        className={`h-full w-full ${!isRunning ? 'cursor-pointer' : ''}`}
+                                                        viewBox="0 0 320 320"
+                                                        onMouseDown={beginDrag}
+                                                        onTouchStart={beginDrag}
+                                                    >
+                                                        <defs>
+                                                            <linearGradient id="pomodoroProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                                <stop offset="0%" stopColor={activeColor} />
+                                                                <stop offset="100%" stopColor="#7dd3fc" />
+                                                            </linearGradient>
+                                                        </defs>
+                                                        <circle
+                                                            cx={TIMER_CENTER}
+                                                            cy={TIMER_CENTER}
+                                                            r={TIMER_RADIUS}
+                                                            fill="none"
+                                                            stroke="rgba(148,163,184,0.18)"
+                                                            strokeWidth="12"
+                                                        />
+                                                        <motion.circle
+                                                            transform={`rotate(-90 ${TIMER_CENTER} ${TIMER_CENTER})`}
+                                                            cx={TIMER_CENTER}
+                                                            cy={TIMER_CENTER}
+                                                            r={TIMER_RADIUS}
+                                                            fill="none"
+                                                            stroke="url(#pomodoroProgressGradient)"
+                                                            strokeWidth="12"
+                                                            strokeLinecap="round"
+                                                            strokeDasharray={circumference}
+                                                            animate={{ strokeDashoffset }}
+                                                            transition={{ duration: isDragging ? 0 : 0.45, ease: 'easeOut' }}
+                                                            style={{ filter: `drop-shadow(0 0 14px ${activeColor})` }}
+                                                        />
+                                                    </svg>
+
+                                                    {!isRunning && (
+                                                        <motion.button
+                                                            type="button"
+                                                            className="absolute z-10 h-8 w-8 rounded-full border-4 border-white shadow-[0_10px_24px_rgba(15,23,42,0.16)]"
+                                                            style={{
+                                                                backgroundColor: activeColor,
+                                                                left: `${handleX}px`,
+                                                                top: `${handleY}px`,
+                                                                transform: 'translate(-50%, -50%)',
+                                                            }}
+                                                            onMouseDown={beginDrag}
+                                                            onTouchStart={beginDrag}
+                                                            animate={{ scale: isDragging ? 1.15 : 1 }}
+                                                        />
+                                                    )}
+
+                                                    <div className="absolute inset-6 flex flex-col items-center justify-center rounded-full bg-[radial-gradient(circle_at_top,#ffffff_0%,#f7fbff_52%,#eef6ff_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
+                                                        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-500">
+                                                            {currentType.label}
+                                                        </div>
+                                                        <div className="mt-5 text-[78px] font-semibold tracking-[-0.08em] text-slate-900">
+                                                            {clock.minutes}:{clock.seconds}
+                                                        </div>
+                                                        <div className="mt-3 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                                                            Round {round} · {Math.round(progress)}% charged
+                                                        </div>
+                                                        <button
+                                                            onClick={isRunning ? handlePause : handleStartOrResume}
+                                                            className="mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(79,110,247,0.28)] transition-transform hover:-translate-y-0.5"
+                                                            style={{ backgroundColor: activeColor }}
+                                                        >
+                                                            {isRunning ? 'Pause session' : 'Start session'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div className="rounded-[28px] border border-slate-100 bg-slate-50/80 p-5">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                                                Presets
+                                                            </div>
+                                                            <div className="mt-1 text-lg font-semibold text-slate-900">
+                                                                Switch between daily rhythms instantly
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setExperienceMode('deep')}
+                                                            className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-50"
+                                                        >
+                                                            Enter Deep Focus
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="mt-5 grid gap-3 md:grid-cols-3">
+                                                        {PRESET_OPTIONS.map((preset) => (
+                                                            <button
+                                                                key={preset.key}
+                                                                onClick={() => applyPreset(preset.key)}
+                                                                className={`rounded-[24px] border px-4 py-4 text-left transition-all ${selectedPreset === preset.key
+                                                                    ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                                                                    }`}
+                                                            >
+                                                                <div className="text-sm font-semibold">{preset.label}</div>
+                                                                <p className={`mt-2 text-xs leading-relaxed ${selectedPreset === preset.key ? 'text-slate-200' : 'text-slate-500'}`}>
+                                                                    {preset.description}
+                                                                </p>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                                                        <button
+                                                            onClick={isRunning ? handlePause : handleStartOrResume}
+                                                            className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+                                                        >
+                                                            {isRunning ? 'Pause' : 'Start'}
+                                                        </button>
+                                                        <button
+                                                            onClick={resetTimer}
+                                                            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+                                                        >
+                                                            Reset
+                                                        </button>
+                                                        <button
+                                                            onClick={handleSkip}
+                                                            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+                                                        >
+                                                            Skip
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setExperienceMode('deep')}
+                                                            className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100"
+                                                        >
+                                                            Deep Focus
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                                                    {heroStats.map((stat) => (
+                                                        <div key={stat.label} className="rounded-[24px] border border-slate-100 bg-white px-4 py-4 shadow-sm">
+                                                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                                                {stat.label}
+                                                            </div>
+                                                            <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                                                                {stat.value}
+                                                            </div>
+                                                            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                                                                {stat.detail}
+                                                            </p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <YourSkyScene
+                                    sessionsCompleted={completedSessionsCount}
+                                    streak={user?.streakCount || 0}
+                                    totalMinutes={user?.totalFocusMinutes || 0}
+                                    focusProgress={isRunning && sessionType === 'focus' ? runningProgress : 0}
+                                />
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="rounded-[32px] border border-slate-200 bg-white/85 p-6 shadow-[0_24px_60px_rgba(148,163,184,0.12)]">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
+                                                Session goals
+                                            </div>
+                                            <h3 className="mt-2 text-xl font-semibold text-slate-900">
+                                                Keep the work block anchored
+                                            </h3>
+                                            <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                                                Link the session to a course, choose a task, and give the timer a clear title before you start.
+                                            </p>
+                                        </div>
+                                        <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                            {availableTasks.length} open tasks
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 space-y-4">
+                                        <div>
+                                            <label className="label">Session label</label>
+                                            <input
+                                                className="input !rounded-[20px]"
+                                                value={sessionLabel}
+                                                onChange={(event) => setSessionLabel(event.target.value)}
+                                                placeholder="e.g. Linear algebra revision"
+                                                disabled={isRunning}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="label">Linked course</label>
+                                            <select
+                                                className="input !rounded-[20px]"
+                                                value={selectedCourseId}
+                                                onChange={(event) => {
+                                                    setSelectedCourseId(event.target.value);
+                                                    setSelectedTaskId('');
+                                                }}
+                                                disabled={isRunning}
+                                            >
+                                                <option value="">No course linked</option>
+                                                {userCourses.map((course) => (
+                                                    <option key={course.id} value={course.id}>
+                                                        {course.icon} {course.courseName}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="label">Linked task</label>
+                                            <select
+                                                className="input !rounded-[20px]"
+                                                value={selectedTaskId}
+                                                onChange={(event) => setSelectedTaskId(event.target.value)}
+                                                disabled={isRunning}
+                                            >
+                                                <option value="">No task linked</option>
+                                                {availableTasks.map((task) => (
+                                                    <option key={task.id} value={task.id}>
+                                                        {task.title}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                            Visible task list
+                                        </div>
+                                        <div className="space-y-2">
+                                            {availableTasks.length === 0 ? (
+                                                <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-4 text-sm leading-relaxed text-slate-500">
+                                                    Add a few tasks to Sirius and they will appear here as quick session goals.
+                                                </div>
+                                            ) : (
+                                                availableTasks.slice(0, 4).map((task) => (
+                                                    <button
+                                                        key={task.id}
+                                                        onClick={() => setSelectedTaskId(task.id)}
+                                                        className={`flex w-full items-center justify-between rounded-[22px] border px-4 py-3 text-left transition-all ${selectedTaskId === task.id
+                                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                                            : 'border-slate-200 bg-slate-50/70 text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                                                            }`}
+                                                    >
+                                                        <span className="font-medium">{task.title}</span>
+                                                        <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${selectedTaskId === task.id ? 'bg-white/10 text-white' : 'bg-white text-slate-400'}`}>
+                                                            Goal
+                                                        </span>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-[32px] border border-slate-200 bg-white/85 p-6 shadow-[0_24px_60px_rgba(148,163,184,0.12)]">
+                                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
+                                        Custom cadence
+                                    </div>
+                                    <h3 className="mt-2 text-xl font-semibold text-slate-900">
+                                        Tune Sirius around your workload
+                                    </h3>
+                                    <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                                        Adjust the lengths directly when your day needs something different from the default rhythms.
+                                    </p>
+
+                                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label className="label">Focus minutes</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="120"
+                                                className="input !rounded-[20px]"
+                                                value={safeSettings.workTime}
+                                                onChange={(event) => updateDurationSetting('focus', event.target.value)}
+                                                disabled={isRunning}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="label">Short break</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="30"
+                                                className="input !rounded-[20px]"
+                                                value={safeSettings.shortBreakTime}
+                                                onChange={(event) => updateDurationSetting('shortBreak', event.target.value)}
+                                                disabled={isRunning}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="label">Long break</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="60"
+                                                className="input !rounded-[20px]"
+                                                value={safeSettings.longBreakTime}
+                                                onChange={(event) => updateDurationSetting('longBreak', event.target.value)}
+                                                disabled={isRunning}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="label">Rounds before long break</label>
+                                            <input
+                                                type="number"
+                                                min="2"
+                                                max="8"
+                                                className="input !rounded-[20px]"
+                                                value={safeSettings.roundsBeforeLongBreak}
+                                                onChange={(event) => updateRoundSetting(event.target.value)}
+                                                disabled={isRunning}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 rounded-[26px] border border-sky-100 bg-sky-50/70 px-4 py-4">
+                                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-600">
+                                            Personal sky progression
+                                        </div>
+                                        <p className="mt-2 text-sm leading-relaxed text-sky-900/80">
+                                            25% progress lights fresh stars, 50% starts connecting constellation fragments, 75% strengthens orbit and nebula effects, and a completed focus session saves a permanent upgrade to your sky.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.section>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

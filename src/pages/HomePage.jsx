@@ -7,10 +7,11 @@ import useAuthStore from '../store/authStore';
 import Modal from '../components/UI/Modal';
 import YourSkyScene from '../components/rewards/YourSkyScene';
 import { COURSE_COLORS, COURSE_ICONS, DEFAULT_WIDGETS, PHILOSOPHER_QUOTES } from '../utils/constants';
-import { formatDateWithOptions, getGreeting, getToday, formatDate, formatTime, minutesToDisplay } from '../utils/helpers';
+import { formatDateWithOptions, getDateKeyInTurkey, getGreeting, getToday, formatTime, minutesToDisplay } from '../utils/helpers';
 import { getMotivationalMessage, getSessionStats, getLevelFromXP, getCompanionStage, getSmartSuggestion } from '../utils/rewardEngine';
 import { db } from '../firebase/config';
 import { isRecentlyActive, timestampToMillis } from '../utils/social';
+import { fillCopy, getStoredLocale, HOME_COPY, persistLocale, SUPPORTED_LOCALES } from '../utils/i18n';
 
 export default function HomePage() {
     const user = useAuthStore((s) => s.user);
@@ -24,21 +25,23 @@ export default function HomePage() {
     const updateCourse = useAppStore((s) => s.updateCourse);
     const deleteCourse = useAppStore((s) => s.deleteCourse);
     const toggleTask = useAppStore((s) => s.toggleTask);
-    const setFocusMode = useAppStore((s) => s.setFocusMode);
     const navigate = useNavigate();
 
     const [showCourseModal, setShowCourseModal] = useState(false);
     const [showWidgetModal, setShowWidgetModal] = useState(false);
     const [showGoalModal, setShowGoalModal] = useState(false);
+    const [showLanguageMenu, setShowLanguageMenu] = useState(false);
     const [editingCourse, setEditingCourse] = useState(null);
     const [courseForm, setCourseForm] = useState({ courseName: '', color: COURSE_COLORS[0], icon: '📚' });
     const [goalInput, setGoalInput] = useState('');
     const [studyRoomUsers, setStudyRoomUsers] = useState([]);
+    const [locale, setLocale] = useState(getStoredLocale);
 
     const isDark = (user?.theme || 'calm') === 'dark';
+    const copy = HOME_COPY[locale] || HOME_COPY.en;
 
     const today = getToday();
-    const todayFormatted = formatDateWithOptions(new Date(), { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayFormatted = formatDateWithOptions(new Date(), { weekday: 'long', month: 'long', day: 'numeric' }, locale);
 
     const userCourses = courses.filter((c) => c.userId === user?.id);
     const userTasks = tasks.filter((t) => t.userId === user?.id);
@@ -48,7 +51,7 @@ export default function HomePage() {
         .filter((e) => e.userId === user?.id && e.date === today)
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
     const todaySessions = userSessions.filter(
-        (s) => s.completed && s.createdAt?.startsWith(today)
+        (s) => s.completed && s.createdAt && getDateKeyInTurkey(s.createdAt) === today
     );
     const todayFocusMinutes = todaySessions.reduce((sum, s) => sum + (s.actualMinutes || 0), 0);
 
@@ -56,9 +59,9 @@ export default function HomePage() {
     const weekStart = new Date();
     const dow = weekStart.getDay();
     weekStart.setDate(weekStart.getDate() - (dow === 0 ? 6 : dow - 1));
-    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekStartStr = getDateKeyInTurkey(weekStart);
     const weeklyMinutes = userSessions
-        .filter((s) => s.completed && s.createdAt && s.createdAt.split('T')[0] >= weekStartStr)
+        .filter((s) => s.completed && s.createdAt && getDateKeyInTurkey(s.createdAt) >= weekStartStr)
         .reduce((sum, s) => sum + (s.actualMinutes || 0), 0);
     const weeklyGoal = user?.weeklyGoalMinutes || 900;
     const weeklyProgress = Math.min(100, (weeklyMinutes / weeklyGoal) * 100);
@@ -71,6 +74,14 @@ export default function HomePage() {
 
     const levelInfo = getLevelFromXP(user?.xp || 0);
     const companion = getCompanionStage(levelInfo.level);
+    const localizedMotivationMessage = locale === 'tr'
+        ? user?.streakCount
+            ? `${user.streakCount} gunluk serin seni ileri tasiyor.`
+            : 'Bugun kisisel gokyuzunu biraz daha zenginlestirmeye hazir misin?'
+        : motivationalMessage;
+    const localizedCompanionSubtitle = locale === 'tr'
+        ? `${companion.name} · Kisisel gokyun her odak oturumunda biraz daha parlaklasiyor.`
+        : fillCopy(copy.motivationSubtitle, { name: companion.name, description: companion.description });
 
     const suggestion = useMemo(() => getSmartSuggestion(userCourses, courseTopics, userSessions, today), [userCourses, courseTopics, userSessions, today]);
     const dailyQuote = useMemo(() => {
@@ -80,6 +91,10 @@ export default function HomePage() {
 
         return PHILOSOPHER_QUOTES[quoteIndex];
     }, [today]);
+
+    useEffect(() => {
+        persistLocale(locale);
+    }, [locale]);
 
     useEffect(() => {
         const activeUsersQuery = query(
@@ -187,12 +202,30 @@ export default function HomePage() {
         updateUser({ dashboardWidgets: updated });
     };
 
+    const handleLocaleChange = (nextLocale) => {
+        setLocale(persistLocale(nextLocale));
+        setShowLanguageMenu(false);
+    };
+
+    const firstName = user?.name?.replace(/[^\s]+@[^\s]+\.[^\s]+/g, '').trim().split(' ')[0] || copy.student;
+    const roomCountLines = focusingUsers.length > 0
+        ? [copy.members, copy.focusingNow]
+        : [copy.activeMembers, copy.onlineNow];
+    const roomHeadline = displayedStudyRoomUsers.length > 0
+        ? displayedStudyRoomUsers[0].focusingNow
+            ? fillCopy(copy.isInSession, {
+                name: displayedStudyRoomUsers[0].displayName || copy.student,
+                session: displayedStudyRoomUsers[0].currentSessionTitle || 'a focus session',
+            })
+            : fillCopy(copy.isOnline, { name: displayedStudyRoomUsers[0].displayName || copy.student })
+        : null;
+
     // Overview card data
     const overviewCards = [
-        { label: 'Sessions Today', value: todaySessions.length, icon: '🍅', iconColor: '#F43F5E' },
-        { label: "Today's Tasks", value: todayTasks.length, icon: '✓', iconColor: '#10B981' },
-        { label: 'Focus Time', value: minutesToDisplay(todayFocusMinutes), icon: '⏱', iconColor: '#6366F1' },
-        { label: 'Streak', value: `${user?.streakCount || 0}d`, icon: '🔥', iconColor: '#F59E0B' },
+        { label: copy.sessionsToday, value: todaySessions.length, icon: '🍅', iconColor: '#F43F5E' },
+        { label: copy.todaysTasksStat, value: todayTasks.length, icon: '✓', iconColor: '#10B981' },
+        { label: copy.focusTime, value: minutesToDisplay(todayFocusMinutes), icon: '⏱', iconColor: '#6366F1' },
+        { label: copy.streak, value: `${user?.streakCount || 0}d`, icon: '🔥', iconColor: '#F59E0B' },
     ];
 
     return (
@@ -205,9 +238,9 @@ export default function HomePage() {
                             className="text-[32px] tracking-tight"
                             style={{ color: 'var(--theme-text, #111827)' }}
                         >
-                            {getGreeting()},{' '}
+                            {getGreeting(locale)},{' '}
                             <span className="font-extrabold">
-                                {user?.name?.replace(/[^\s]+@[^\s]+\.[^\s]+/g, '').trim().split(' ')[0] || 'Student'}
+                                {firstName}
                             </span>
                         </h1>
                         <p
@@ -217,14 +250,39 @@ export default function HomePage() {
                             {todayFormatted}
                         </p>
                     </div>
-                    <button
-                        onClick={() => setShowWidgetModal(true)}
-                        className="btn-ghost text-xs"
-                        style={{ color: 'var(--theme-text-muted, #94A3B8)' }}
-                        title="Customize dashboard"
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
-                    </button>
+                    <div className="relative flex items-center gap-2">
+                        <button
+                            onClick={() => setShowLanguageMenu((current) => !current)}
+                            className="btn-ghost text-xs gap-2"
+                            style={{ color: 'var(--theme-text-muted, #94A3B8)' }}
+                            title={`${copy.enLabel} / ${copy.trLabel}`}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a14.5 14.5 0 014 9 14.5 14.5 0 01-4 9 14.5 14.5 0 01-4-9 14.5 14.5 0 014-9z" /></svg>
+                            <span>{locale.toUpperCase()}</span>
+                        </button>
+                        {showLanguageMenu && (
+                            <div className="absolute right-0 top-full z-20 mt-2 w-40 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+                                {SUPPORTED_LOCALES.map((option) => (
+                                    <button
+                                        key={option.key}
+                                        onClick={() => handleLocaleChange(option.key)}
+                                        className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition-colors ${locale === option.key ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+                                    >
+                                        <span>{option.label}</span>
+                                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{option.shortLabel}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <button
+                            onClick={() => setShowWidgetModal(true)}
+                            className="btn-ghost text-xs"
+                            style={{ color: 'var(--theme-text-muted, #94A3B8)' }}
+                            title={copy.customizeDashboard}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Motivation Card */}
@@ -241,8 +299,8 @@ export default function HomePage() {
                     <div className="flex items-center gap-3">
                         <div className="text-2xl animate-float">{companion.emoji}</div>
                         <div>
-                            <p className="text-sm font-medium" style={{ color: 'var(--theme-text, #334155)' }}>{motivationalMessage}</p>
-                            <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{companion.name} · {companion.description}</p>
+                            <p className="text-sm font-medium" style={{ color: 'var(--theme-text, #334155)' }}>{localizedMotivationMessage}</p>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{localizedCompanionSubtitle}</p>
                         </div>
                     </div>
                 </motion.div>
@@ -281,7 +339,7 @@ export default function HomePage() {
                     <div className={`grid ${suggestion && suggestion.type !== 'new' ? 'grid-cols-2' : 'grid-cols-1'} gap-5`}>
                         <div className="card relative overflow-hidden flex flex-col justify-center h-full">
                             <div className={`absolute top-0 left-0 w-2 h-full rounded-l-2xl ${isDark ? 'bg-gradient-to-b from-indigo-500/60 to-purple-500/60' : 'bg-gradient-to-b from-indigo-300 to-purple-300'}`}></div>
-                            <h3 className="text-[11px] font-bold uppercase tracking-wider mb-2 pl-3" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>Quote of the Day</h3>
+                            <h3 className="text-[11px] font-bold uppercase tracking-wider mb-2 pl-3" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{copy.quoteOfTheDay}</h3>
                             <p className="italic font-medium leading-relaxed pl-3" style={{ color: 'var(--theme-text-secondary, #64748B)' }}>
                                 "{dailyQuote.text}" — {dailyQuote.author}
                             </p>
@@ -300,12 +358,12 @@ export default function HomePage() {
                             >
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`animate-float ${isDark ? 'text-amber-400' : 'text-amber-600'}`}><line x1="12" y1="2" x2="12" y2="7" /><path d="M12 7l4 4-2 7H10l-2-7 4-4z" /></svg>
                                 <div className="flex-1">
-                                    <h3 className="text-[16px] font-bold mb-0.5" style={{ color: isDark ? '#FBBF24' : '#78350F' }}>Smart Suggestion</h3>
+                                    <h3 className="text-[16px] font-bold mb-0.5" style={{ color: isDark ? '#FBBF24' : '#78350F' }}>{copy.smartSuggestion}</h3>
                                     <p className="text-[13px] font-medium leading-snug" style={{ color: isDark ? 'rgba(251, 191, 36, 0.7)' : 'rgba(120, 53, 15, 0.8)' }}>{suggestion.message}</p>
                                 </div>
                                 {suggestion.courseId && (
                                     <button onClick={() => navigate(`/pomodoro?courseId=${suggestion.courseId}`)} className="bg-amber-600/90 text-white hover:bg-amber-700 rounded-lg px-4 py-2 text-[12px] font-semibold transition-colors shadow-sm">
-                                        Focus
+                                        {copy.focus}
                                     </button>
                                 )}
                             </motion.div>
@@ -317,9 +375,9 @@ export default function HomePage() {
                         <div className="card">
                             <div className="flex items-center justify-between mb-5">
                                 <h2 className="text-[18px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    📝 Today's Tasks
+                                    📝 {copy.todayTasks}
                                 </h2>
-                                <Link to="/tasks" className="text-[13px] text-blue-600 hover:text-blue-700 font-semibold transition-colors">View all →</Link>
+                                <Link to="/tasks" className="text-[13px] text-blue-600 hover:text-blue-700 font-semibold transition-colors">{copy.viewAll}</Link>
                             </div>
                             <div className="space-y-2">
                                 {todayTasks.length === 0 ? (
@@ -327,7 +385,7 @@ export default function HomePage() {
                                         ? 'border border-dashed'
                                         : 'bg-gray-50/50 border border-gray-100'
                                         }`}>
-                                        <p className="text-[14px] font-medium" style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8' }}>No tasks scheduled for today.</p>
+                                        <p className="text-[14px] font-medium" style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8' }}>{copy.noTasks}</p>
                                         <button
                                             onClick={() => navigate('/tasks')}
                                             className={`mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all ${isDark
@@ -336,7 +394,7 @@ export default function HomePage() {
                                                 }`}
                                         >
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                                            Add Task
+                                            {copy.addTask}
                                         </button>
                                     </div>
                                 ) : (
@@ -379,16 +437,16 @@ export default function HomePage() {
                         <div className="card">
                             <div className="flex items-center justify-between mb-5">
                                 <h2 className="text-[18px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    📅 Today's Schedule
+                                    📅 {copy.todaySchedule}
                                 </h2>
-                                <Link to="/schedule" className="text-[13px] text-blue-600 hover:text-blue-700 font-semibold transition-colors">View schedule →</Link>
+                                <Link to="/schedule" className="text-[13px] text-blue-600 hover:text-blue-700 font-semibold transition-colors">{copy.viewSchedule}</Link>
                             </div>
                             {todaySchedule.length === 0 ? (
                                 <div className={`text-center py-8 rounded-2xl empty-state-card ${isDark
                                     ? 'border border-dashed'
                                     : 'bg-gray-50/50 border border-dashed border-gray-200'
                                     }`}>
-                                    <p className="text-[13px] font-medium" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8' }}>No classes or sessions scheduled for today</p>
+                                    <p className="text-[13px] font-medium" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8' }}>{copy.noSchedule}</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-3">
@@ -404,8 +462,8 @@ export default function HomePage() {
                                             >
                                                 <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: course?.color || '#94a3b8' }}></div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="text-[13px] font-bold truncate mb-0.5" style={{ color: 'var(--theme-text, #334155)' }}>{course?.courseName || 'Course'}</div>
-                                                    <div className="text-[12px] font-medium" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{formatTime(entry.startTime)} - {formatTime(entry.endTime)}</div>
+                                                    <div className="text-[13px] font-bold truncate mb-0.5" style={{ color: 'var(--theme-text, #334155)' }}>{course?.courseName || copy.viewCourseFallback}</div>
+                                                    <div className="text-[12px] font-medium" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{formatTime(entry.startTime, locale)} - {formatTime(entry.endTime, locale)}</div>
                                                 </div>
                                             </div>
                                         );
@@ -426,13 +484,13 @@ export default function HomePage() {
                                 }`}
                             style={isDark ? { background: 'rgba(99, 102, 241, 0.06)' } : {}}
                         >
-                            <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--theme-text, #111827)' }}>Daily Reflection</h3>
-                            <p className="text-[13px] mb-4" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>How productive was your study session today?</p>
+                            <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--theme-text, #111827)' }}>{copy.dailyReflection}</h3>
+                            <p className="text-[13px] mb-4" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{copy.dailyReflectionPrompt}</p>
                             <div className="flex gap-3">
                                 {[
-                                    { label: 'Productive', emoji: '🙂', value: 'productive' },
-                                    { label: 'Average', emoji: '😐', value: 'average' },
-                                    { label: 'Low Focus', emoji: '😴', value: 'low focus' },
+                                    { label: copy.productive, emoji: '🙂', value: 'productive' },
+                                    { label: copy.average, emoji: '😐', value: 'average' },
+                                    { label: copy.lowFocus, emoji: '😴', value: 'low focus' },
                                 ].map((opt) => (
                                     <button
                                         key={opt.value}
@@ -464,15 +522,15 @@ export default function HomePage() {
                         >
                             <div className="flex items-center gap-3 mb-4">
                                 <div>
-                                    <h3 className="font-bold text-[16px]">Quick Focus</h3>
-                                    <p className="text-white/80 text-[12px] font-medium mt-0.5">Start a 25m session</p>
+                                    <h3 className="font-bold text-[16px]">{copy.quickFocus}</h3>
+                                    <p className="text-white/80 text-[12px] font-medium mt-0.5">{copy.quickFocusSubtitle}</p>
                                 </div>
                             </div>
                             <button
-                                onClick={() => setFocusMode(true, { title: 'Deep Focus Session' })}
+                                onClick={() => navigate('/pomodoro')}
                                 className="bg-white/20 hover:bg-white/30 text-white text-[13px] font-semibold px-4 py-2.5 rounded-2xl transition-all w-full backdrop-blur-md shadow-sm border border-white/10 flex items-center justify-center gap-2"
                             >
-                                <span className="animate-float">⏱️</span> Start Session →
+                                <span className="animate-float">⏱️</span> {copy.startSession}
                             </button>
                         </motion.div>
                     )}
@@ -495,11 +553,11 @@ export default function HomePage() {
                         >
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-[15px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    🌍 Global Study Room
+                                    🌍 {copy.globalStudyRoom}
                                 </h3>
                                 <span className="flex items-center gap-1.5" style={{ color: user?.theme === 'nature' ? '#22c55e' : (isDark ? '#818CF8' : 'var(--theme-primary, #4F46E5)') }}>
                                     <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]"></span>
-                                    <span className="text-[11px] font-bold uppercase tracking-wider">Live</span>
+                                    <span className="text-[11px] font-bold uppercase tracking-wider">{copy.live}</span>
                                 </span>
                             </div>
                             <div className="flex flex-col gap-3">
@@ -508,11 +566,7 @@ export default function HomePage() {
                                         {focusingUsers.length || studyRoomUsers.length}
                                     </div>
                                     <div className="text-[13px] font-medium leading-tight" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                        {focusingUsers.length > 0 ? (
-                                            <>members<br />focusing now</>
-                                        ) : (
-                                            <>active members<br />online now</>
-                                        )}
+                                        {roomCountLines[0]}<br />{roomCountLines[1]}
                                     </div>
                                 </div>
                                 {displayedStudyRoomUsers.length > 0 ? (
@@ -534,17 +588,16 @@ export default function HomePage() {
                                     </div>
                                 ) : (
                                     <div className="rounded-xl px-3 py-2 text-[12px] font-medium" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.6)', color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                        Nobody is active yet. The room fills automatically as signed-in members use Sirius.
+                                        {copy.nobodyActive}
                                     </div>
                                 )}
-                                {displayedStudyRoomUsers.length > 0 && (
+                                {roomHeadline && (
                                     <div className="text-[12px] leading-relaxed" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                        {displayedStudyRoomUsers[0].displayName || 'A member'}
-                                        {displayedStudyRoomUsers[0].focusingNow ? ` is in ${displayedStudyRoomUsers[0].currentSessionTitle || 'a focus session'}.` : ' is online right now.'}
+                                        {roomHeadline}
                                     </div>
                                 )}
                                 <button
-                                    onClick={() => setFocusMode(true, { title: 'Global Study Session' })}
+                                    onClick={() => navigate('/pomodoro?mode=deep')}
                                     className={`mt-2 w-full py-2.5 rounded-xl text-[13px] font-bold transition-colors shadow-sm`}
                                     style={{
                                         color: 'var(--theme-primary, #4F46E5)',
@@ -552,7 +605,7 @@ export default function HomePage() {
                                         border: '1px solid var(--theme-primary, #EEF2FF)'
                                     }}
                                 >
-                                    Join Study Room
+                                    {copy.joinStudyRoom}
                                 </button>
                             </div>
                         </motion.div>
@@ -569,7 +622,7 @@ export default function HomePage() {
                         >
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-[16px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    🎯 Weekly Goal
+                                    🎯 {copy.weeklyGoal}
                                 </h3>
                                 <span
                                     className="text-[12px] px-2.5 py-1 rounded-lg font-bold"
@@ -586,7 +639,7 @@ export default function HomePage() {
                                     <span className="text-[24px] font-extrabold leading-none tracking-tight" style={{ color: 'var(--theme-text, #111827)' }}>
                                         {Math.floor(weeklyMinutes / 60)}h {weeklyMinutes % 60}m
                                     </span>
-                                    <span className="text-[13px] font-medium" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>/ {Math.floor(weeklyGoal / 60)}h goal</span>
+                                    <span className="text-[13px] font-medium" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>/ {Math.floor(weeklyGoal / 60)}h {copy.goalSuffix}</span>
                                 </div>
                                 <div className={`w-full h-3 rounded-full overflow-hidden weekly-goal-bar ${isDark ? '' : 'bg-slate-100'}`}>
                                     <motion.div
@@ -609,9 +662,9 @@ export default function HomePage() {
                         <div className="card">
                             <div className="flex items-center justify-between mb-5">
                                 <h3 className="text-[16px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    ✨ Your Sky
+                                    ✨ {copy.yourSky}
                                 </h3>
-                                <Link to="/rewards" className="text-[13px] text-blue-600 hover:text-blue-700 font-semibold transition-colors">Details →</Link>
+                                <Link to="/rewards" className="text-[13px] text-blue-600 hover:text-blue-700 font-semibold transition-colors">{copy.details}</Link>
                             </div>
 
                             <YourSkyScene
@@ -631,7 +684,7 @@ export default function HomePage() {
                                         : 'bg-orange-50 border border-orange-100 hover:border-orange-200 text-orange-700 hover:bg-orange-100/50'
                                         }`}
                                 >
-                                    <span className="flex items-center gap-2"><span className="text-lg">🛡️</span> Protect Streak</span>
+                                    <span className="flex items-center gap-2"><span className="text-lg">🛡️</span> {copy.protectStreak}</span>
                                     <span className={`px-2 py-0.5 rounded ${isDark ? 'bg-orange-500/15 text-orange-300' : 'bg-orange-200/60 text-orange-800'}`}>50 coins</span>
                                 </button>
                             )}
@@ -640,7 +693,7 @@ export default function HomePage() {
                                     ? 'bg-emerald-500/10 border border-emerald-500/15 text-emerald-300'
                                     : 'bg-emerald-50 border border-emerald-100 text-emerald-700'
                                     }`}>
-                                    <span className="text-lg">✨</span> Your streak is protected today
+                                    <span className="text-lg">✨</span> {copy.streakProtected}
                                 </div>
                             )}
                         </div>
@@ -651,17 +704,17 @@ export default function HomePage() {
             {/* Courses */}
             <div className="mt-8">
                 <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-semibold" style={{ color: 'var(--theme-text-secondary, #475569)' }}>My Courses</h2>
+                    <h2 className="text-sm font-semibold" style={{ color: 'var(--theme-text-secondary, #475569)' }}>{copy.myCourses}</h2>
                     <button onClick={openAddCourseModal} className="btn-ghost text-blue-500 !text-xs">
-                        + Add Course
+                        {copy.addCourseCta}
                     </button>
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                     {userCourses.length === 0 ? (
                         <div className="col-span-4 card text-center py-10">
                             <div className="text-4xl mb-2">📚</div>
-                            <p className="text-sm" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>Add your first course to get started</p>
-                            <button onClick={openAddCourseModal} className="btn-primary mt-3 mx-auto">+ Add Course</button>
+                            <p className="text-sm" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{copy.addFirstCourse}</p>
+                            <button onClick={openAddCourseModal} className="btn-primary mt-3 mx-auto">{copy.addCourseCta}</button>
                         </div>
                     ) : (
                         userCourses.map((course, i) => (
@@ -691,21 +744,21 @@ export default function HomePage() {
             </div>
 
             {/* Course Modal */}
-            <Modal isOpen={showCourseModal} onClose={() => setShowCourseModal(false)} title={editingCourse ? 'Edit Course' : 'New Course'}>
+            <Modal isOpen={showCourseModal} onClose={() => setShowCourseModal(false)} title={editingCourse ? copy.editCourse : copy.newCourse}>
                 <form onSubmit={handleCourseSubmit} className="space-y-4">
                     <div>
-                        <label className="label">Course Name</label>
+                        <label className="label">{copy.courseName}</label>
                         <input
                             className="input"
                             value={courseForm.courseName}
                             onChange={(e) => setCourseForm({ ...courseForm, courseName: e.target.value })}
-                            placeholder="e.g. Mathematics 101"
+                            placeholder={copy.courseNamePlaceholder}
                             required
                             autoFocus
                         />
                     </div>
                     <div>
-                        <label className="label">Icon</label>
+                        <label className="label">{copy.icon}</label>
                         <div className="flex flex-wrap gap-1.5">
                             {COURSE_ICONS.map((icon) => (
                                 <button
@@ -723,7 +776,7 @@ export default function HomePage() {
                         </div>
                     </div>
                     <div>
-                        <label className="label">Color</label>
+                        <label className="label">{copy.color}</label>
                         <div className="flex flex-wrap gap-2.5">
                             {COURSE_COLORS.map((color) => (
                                 <button
@@ -739,20 +792,20 @@ export default function HomePage() {
                     </div>
                     <div className="flex gap-3 pt-2">
                         {editingCourse && (
-                            <button type="button" onClick={handleDeleteCourse} className="btn-ghost text-red-500 hover:bg-red-50">Delete</button>
+                            <button type="button" onClick={handleDeleteCourse} className="btn-ghost text-red-500 hover:bg-red-50">{copy.delete}</button>
                         )}
                         <div className="flex-1"></div>
-                        <button type="button" onClick={() => setShowCourseModal(false)} className="btn-secondary">Cancel</button>
-                        <button type="submit" className="btn-primary">{editingCourse ? 'Save' : 'Add Course'}</button>
+                        <button type="button" onClick={() => setShowCourseModal(false)} className="btn-secondary">{copy.cancel}</button>
+                        <button type="submit" className="btn-primary">{editingCourse ? copy.save : copy.addCourse}</button>
                     </div>
                 </form>
             </Modal>
 
             {/* Weekly Goal Modal */}
-            <Modal isOpen={showGoalModal} onClose={() => setShowGoalModal(false)} title="Weekly Study Goal">
+            <Modal isOpen={showGoalModal} onClose={() => setShowGoalModal(false)} title={copy.weeklyStudyGoal}>
                 <div className="space-y-4">
                     <div>
-                        <label className="label">Hours per week</label>
+                        <label className="label">{copy.hoursPerWeek}</label>
                         <input
                             type="number"
                             className="input"
@@ -765,15 +818,15 @@ export default function HomePage() {
                         />
                     </div>
                     <div className="flex gap-3 pt-2">
-                        <button onClick={() => setShowGoalModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
-                        <button onClick={handleSaveGoal} className="btn-primary flex-1 justify-center">Save Goal</button>
+                        <button onClick={() => setShowGoalModal(false)} className="btn-secondary flex-1 justify-center">{copy.cancel}</button>
+                        <button onClick={handleSaveGoal} className="btn-primary flex-1 justify-center">{copy.saveGoal}</button>
                     </div>
                 </div>
             </Modal>
 
             {/* Widget Customization Modal */}
-            <Modal isOpen={showWidgetModal} onClose={() => setShowWidgetModal(false)} title="Customize Dashboard">
-                <p className="text-sm mb-4" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>Choose which widgets appear on your home page.</p>
+            <Modal isOpen={showWidgetModal} onClose={() => setShowWidgetModal(false)} title={copy.customizeDashboardModal}>
+                <p className="text-sm mb-4" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{copy.customizeDashboardDescription}</p>
                 <div className="space-y-2">
                     {(widgets || DEFAULT_WIDGETS).map((widget) => (
                         <label
@@ -786,11 +839,11 @@ export default function HomePage() {
                                 onChange={() => toggleWidget(widget.id)}
                                 className="w-4 h-4 rounded accent-blue-500"
                             />
-                            <span className="text-sm" style={{ color: 'var(--theme-text, #334155)' }}>{widget.name}</span>
+                            <span className="text-sm" style={{ color: 'var(--theme-text, #334155)' }}>{copy.widgetNames[widget.id] || widget.name}</span>
                         </label>
                     ))}
                 </div>
-                <button onClick={() => setShowWidgetModal(false)} className="btn-primary w-full justify-center mt-4">Done</button>
+                <button onClick={() => setShowWidgetModal(false)} className="btn-primary w-full justify-center mt-4">{copy.done}</button>
             </Modal>
         </div>
     );
