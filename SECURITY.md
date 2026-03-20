@@ -19,6 +19,8 @@ This project is a client-side React application deployed on Vercel and backed by
 - Added optional Firebase App Check bootstrap using `VITE_FIREBASE_APPCHECK_SITE_KEY`.
 - Added lightweight client-side throttling for repeated login/signup attempts.
 - Replaced the remote Pomodoro completion sound with a local Web Audio chime.
+- Switched the mirrored auth snapshot from `localStorage` to `sessionStorage` and reduced the stored fields.
+- Forced Firebase auth persistence to browser-session scope instead of long-lived browser persistence.
 
 ## Requires manual action outside the repo
 
@@ -55,3 +57,11 @@ This repo does not currently ship a custom backend or API routes. If you later a
 ### 6. Vercel technology fingerprinting
 
 Some platform-level response fingerprints may still be visible on Vercel and are not fully removable from application code.
+
+### 7. Client-side storage findings
+
+This app still stores study data such as tasks, sessions, and schedule entries in browser storage because it is designed as a client-heavy app. The most sensitive mirrored auth snapshot was reduced and moved to session storage, but a full fix for browser-storage findings would require moving more user data to Firebase/server-backed storage.
+
+### 8. CSRF findings
+
+Classic CSRF mainly applies to cookie-authenticated state-changing server endpoints. This app currently relies on Firebase client auth rather than custom cookie-authenticated form endpoints, so scanner tools may over-report this item. Session-only auth persistence and App Check were added as extra hardening, but if you add server APIs later, include true CSRF tokens or same-site cookie protections there.

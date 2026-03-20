@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { auth, db } from '../firebase/config';
 import { 
+    browserSessionPersistence,
     createUserWithEmailAndPassword, 
     getRedirectResult,
+    setPersistence,
     signInWithEmailAndPassword, 
     signOut, 
     onAuthStateChanged,
@@ -27,15 +29,58 @@ import {
 } from '../utils/auth';
 import { getDisplayName, getWeekKey } from '../utils/social';
 
-const STORAGE_KEY = 'studywithme_auth';
+const STORAGE_KEY = 'sirius_auth_session';
 let presenceIntervalId = null;
 let visibilityCleanup = null;
 
+function getAuthStorage() {
+    if (typeof window === 'undefined') return null;
+
+    try {
+        return window.sessionStorage;
+    } catch {
+        return null;
+    }
+}
+
+function loadAuthFromStorage() {
+    const storage = getAuthStorage();
+
+    if (!storage) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(storage.getItem(STORAGE_KEY) || 'null');
+    } catch {
+        return null;
+    }
+}
+
+function sanitizeUserForStorage(user) {
+    if (!user) return null;
+
+    return {
+        id: user.id,
+        name: user.name,
+        profilePhoto: user.profilePhoto || '',
+        theme: user.theme || 'calm',
+        streakCount: user.streakCount || 0,
+        xp: user.xp || 0,
+    };
+}
+
 function saveAuthToLocal(user) {
+    const storage = getAuthStorage();
+
+    if (!storage) {
+        return;
+    }
+
     if (user) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+        storage.setItem(STORAGE_KEY, JSON.stringify(sanitizeUserForStorage(user)));
     } else {
-        localStorage.removeItem(STORAGE_KEY);
+        storage.removeItem(STORAGE_KEY);
     }
 }
 
@@ -90,8 +135,8 @@ function clearPresenceTracking() {
 }
 
 const useAuthStore = create((set, get) => ({
-    user: JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'),
-    isAuthenticated: !!localStorage.getItem(STORAGE_KEY),
+    user: loadAuthFromStorage(),
+    isAuthenticated: !!loadAuthFromStorage(),
     isLoading: true,
 
     syncPublicProfile: async (userData, extra = {}) => {
@@ -179,6 +224,10 @@ const useAuthStore = create((set, get) => ({
 
     // Initialize listener
     init: () => {
+        setPersistence(auth, browserSessionPersistence).catch((error) => {
+            console.error('Failed to apply session auth persistence', error);
+        });
+
         getRedirectResult(auth).catch((error) => {
             console.error('Google redirect sign-in failed', error);
         });
