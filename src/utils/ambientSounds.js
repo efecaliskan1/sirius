@@ -126,18 +126,21 @@ function createRainScene(ctx, destination) {
 }
 
 function createLibraryScene(ctx, destination) {
-    const roomTone = createBrownNoise(ctx, destination, 0.08, 180);
-    const airHum = createOscillator(ctx, destination, { frequency: 60, gain: 0.012 });
-    const fluorescent = createOscillator(ctx, destination, { frequency: 120, gain: 0.004, type: 'triangle' });
-    return collectParts([roomTone, airHum, fluorescent]);
+    const roomTone = createBrownNoise(ctx, destination, 0.16, 260);
+    const pageTexture = createPinkNoise(ctx, destination, 0.05);
+    const airHum = createOscillator(ctx, destination, { frequency: 62, gain: 0.024 });
+    const fluorescent = createOscillator(ctx, destination, { frequency: 118, gain: 0.01, type: 'triangle' });
+    const roomResonance = createOscillator(ctx, destination, { frequency: 240, gain: 0.006, type: 'sine' });
+    return collectParts([roomTone, pageTexture, airHum, fluorescent, roomResonance]);
 }
 
 function createCafeScene(ctx, destination) {
-    const roomBed = createBrownNoise(ctx, destination, 0.12, 420);
-    const chatter = createPinkNoise(ctx, destination, 0.06);
-    const cupTone = createOscillator(ctx, destination, { frequency: 420, gain: 0.004, type: 'triangle', filterFrequency: 640, q: 1.2 });
-    const lowHum = createOscillator(ctx, destination, { frequency: 95, gain: 0.007, type: 'sawtooth' });
-    return collectParts([roomBed, chatter, cupTone, lowHum]);
+    const roomBed = createBrownNoise(ctx, destination, 0.2, 520);
+    const chatter = createPinkNoise(ctx, destination, 0.1);
+    const cupTone = createOscillator(ctx, destination, { frequency: 420, gain: 0.012, type: 'triangle', filterFrequency: 820, q: 1.4 });
+    const lowHum = createOscillator(ctx, destination, { frequency: 110, gain: 0.014, type: 'sawtooth' });
+    const espressoSteam = createOscillator(ctx, destination, { frequency: 760, gain: 0.005, type: 'square', filterFrequency: 1000, q: 0.9 });
+    return collectParts([roomBed, chatter, cupTone, lowHum, espressoSteam]);
 }
 
 export async function startAmbientSound(type, volume = 0.45) {

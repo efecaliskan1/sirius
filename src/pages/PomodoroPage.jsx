@@ -10,30 +10,9 @@ import { getWeekKey } from '../utils/social';
 import { setAmbientVolume, startAmbientSound, stopAmbientSound } from '../utils/ambientSounds';
 
 const SESSION_TYPES = [
-    {
-        key: 'focus',
-        label: 'Focus',
-        eyebrow: 'Deep work block',
-        description: 'Shape a calm, structured study session with a clear objective.',
-        color: '#4F6EF7',
-        glow: 'rgba(79, 110, 247, 0.24)',
-    },
-    {
-        key: 'shortBreak',
-        label: 'Short Break',
-        eyebrow: 'Reset and breathe',
-        description: 'A short reset to keep your attention fresh between focus rounds.',
-        color: '#22C55E',
-        glow: 'rgba(34, 197, 94, 0.24)',
-    },
-    {
-        key: 'longBreak',
-        label: 'Long Break',
-        eyebrow: 'Longer recovery',
-        description: 'A deeper pause after multiple rounds to protect your energy.',
-        color: '#06B6D4',
-        glow: 'rgba(6, 182, 212, 0.24)',
-    },
+    { key: 'focus', label: 'Focus' },
+    { key: 'shortBreak', label: 'Short Break' },
+    { key: 'longBreak', label: 'Long Break' },
 ];
 
 const PRESET_OPTIONS = [
@@ -755,7 +734,7 @@ export default function PomodoroPage() {
     }
 
     return (
-        <div className={experienceMode === 'deep' ? 'relative -mx-4 sm:mx-0' : 'mx-auto max-w-6xl'}>
+        <div className={experienceMode === 'deep' ? '' : 'mx-auto max-w-6xl'}>
             <AnimatePresence>
                 {showCompletion && (
                     <motion.div
@@ -857,7 +836,7 @@ export default function PomodoroPage() {
                         initial={{ opacity: 0, scale: 0.985 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.985 }}
-                        className="relative min-h-[calc(100vh-5rem)] overflow-hidden rounded-[36px] border border-indigo-300/20 bg-[#081124] px-6 py-6 shadow-[0_30px_120px_rgba(8,17,36,0.55)]"
+                        className="fixed inset-0 z-40 overflow-hidden bg-[#081124] px-6 py-6 shadow-[0_30px_120px_rgba(8,17,36,0.55)]"
                     >
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(96,165,250,0.18),transparent_34%),radial-gradient(circle_at_20%_30%,rgba(129,140,248,0.16),transparent_22%),radial-gradient(circle_at_80%_70%,rgba(14,165,233,0.1),transparent_24%),linear-gradient(180deg,#07101f_0%,#0a1630_50%,#09152a_100%)]" />
                         <div className="absolute inset-0 opacity-80">
@@ -884,10 +863,43 @@ export default function PomodoroPage() {
                             style={{ background: `radial-gradient(circle, ${activeColor} 0%, rgba(59,130,246,0.08) 55%, transparent 78%)` }}
                         />
 
-                        <div className="relative z-10 flex min-h-[calc(100vh-7rem)] flex-col">
-                            <div className="flex justify-end">
+                        <div className="relative z-10 flex min-h-screen flex-col">
+                            <div className="flex items-start justify-between gap-4">
                                 <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">
                                     Deep Focus Mode
+                                </div>
+                                <div className="w-full max-w-sm rounded-[24px] border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-md">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300/70">
+                                            Ambient
+                                        </span>
+                                        <span className="text-xs font-medium text-slate-300/70">
+                                            {ambientVolume}%
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {soundOptions.map((sound) => (
+                                            <button
+                                                key={sound.id}
+                                                onClick={() => handleAmbientSoundChange(sound.id)}
+                                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${ambientSound === sound.id
+                                                    ? 'border-white bg-white text-slate-900'
+                                                    : 'border-white/12 bg-white/5 text-slate-200'
+                                                    }`}
+                                            >
+                                                <span className="mr-1.5">{sound.emoji}</span>
+                                                {sound.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        value={ambientVolume}
+                                        onChange={(event) => handleAmbientVolumeChange(event.target.value)}
+                                        className="mt-3 w-full accent-white"
+                                    />
                                 </div>
                             </div>
 
