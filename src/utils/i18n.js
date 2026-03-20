@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
+
 export const LOCALE_STORAGE_KEY = 'sirius_locale';
+export const LOCALE_CHANGE_EVENT = 'sirius-locale-change';
 
 export const SUPPORTED_LOCALES = [
     { key: 'en', label: 'English', shortLabel: 'EN' },
@@ -33,7 +36,32 @@ export function persistLocale(locale) {
         document.documentElement.lang = nextLocale === 'tr' ? 'tr' : 'en';
     }
 
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(LOCALE_CHANGE_EVENT, { detail: nextLocale }));
+    }
+
     return nextLocale;
+}
+
+export function useLocale() {
+    const [locale, setLocale] = useState(getStoredLocale);
+
+    useEffect(() => {
+        const syncLocale = (event) => {
+            const nextLocale = event?.detail || getStoredLocale();
+            setLocale(normalizeLocale(nextLocale));
+        };
+
+        window.addEventListener(LOCALE_CHANGE_EVENT, syncLocale);
+        window.addEventListener('storage', syncLocale);
+
+        return () => {
+            window.removeEventListener(LOCALE_CHANGE_EVENT, syncLocale);
+            window.removeEventListener('storage', syncLocale);
+        };
+    }, []);
+
+    return locale;
 }
 
 export const HOME_COPY = {
