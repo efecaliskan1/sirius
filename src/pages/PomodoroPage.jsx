@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
-import YourSkyScene, { getSkySummary } from '../components/rewards/YourSkyScene';
+import YourSkyScene from '../components/rewards/YourSkyScene';
 import { COINS_PER_SESSION, DEFAULT_POMODORO_SETTINGS, XP_PER_SESSION } from '../utils/constants';
 import { checkNewBadges, getSessionStats } from '../utils/rewardEngine';
 import { getDateKeyInTurkey, getToday, minutesToDisplay } from '../utils/helpers';
@@ -86,7 +86,6 @@ const DEEP_SPACE_STARS = [
 
 const TIMER_RADIUS = 136;
 const TIMER_CENTER = 160;
-const HOLD_TO_EXIT_MS = 950;
 
 function getMaxMinutesForType(type) {
     if (type === 'focus') return 120;
@@ -163,7 +162,6 @@ export default function PomodoroPage() {
     const [selectedPreset, setSelectedPreset] = useState(() => detectPreset(DEFAULT_POMODORO_SETTINGS));
     const [selectedCourseId, setSelectedCourseId] = useState(() => searchParams.get('courseId') || '');
     const [selectedTaskId, setSelectedTaskId] = useState(() => searchParams.get('taskId') || '');
-    const [sessionLabel, setSessionLabel] = useState(() => searchParams.get('label') || '');
     const [isRunning, setIsRunning] = useState(false);
     const [timeLeft, setTimeLeft] = useState((DEFAULT_POMODORO_SETTINGS.workTime || 25) * 60);
     const [round, setRound] = useState(1);
@@ -172,13 +170,14 @@ export default function PomodoroPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isDragging, setIsDragging] = useState(false);
     const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
-    const [exitHoldProgress, setExitHoldProgress] = useState(0);
+    const [showExitConfirm, setShowExitConfirm] = useState(false);
+    const [exitConfirmReady, setExitConfirmReady] = useState(false);
 
     const intervalRef = useRef(null);
     const bellAudioRef = useRef(null);
     const svgRef = useRef(null);
     const targetEndTimeRef = useRef(null);
-    const exitHoldIntervalRef = useRef(null);
+    const exitConfirmTimeoutRef = useRef(null);
 
     const safeSettings = useMemo(() => ({
         workTime: settings.workTime || settings.focusDuration || 25,
@@ -215,10 +214,9 @@ export default function PomodoroPage() {
     const selectedCourse = userCourses.find((course) => course.id === selectedCourseId);
     const selectedTask = openTasks.find((task) => task.id === selectedTaskId);
 
-    const currentSessionTitle = sessionLabel.trim()
-        || selectedTask?.title
+    const currentSessionTitle = selectedTask?.title
         || selectedCourse?.courseName
-        || 'Untitled session';
+        || 'Focus Session';
 
     const currentType = SESSION_TYPES.find((type) => type.key === sessionType) || SESSION_TYPES[0];
 
@@ -249,37 +247,11 @@ export default function PomodoroPage() {
     const handleY = TIMER_CENTER + TIMER_RADIUS * Math.sin(angleInRadians);
     const clock = formatClock(timeLeft);
 
-    const skyState = useMemo(
-        () => getSkySummary({
-            sessionsCompleted: completedSessionsCount,
-            streak: user?.streakCount || 0,
-            totalMinutes: user?.totalFocusMinutes || 0,
-            focusProgress: isRunning && sessionType === 'focus' ? runningProgress : 0,
-        }),
-        [completedSessionsCount, isRunning, runningProgress, sessionType, user?.streakCount, user?.totalFocusMinutes]
-    );
-
     const heroStats = [
-        {
-            label: 'Sessions today',
-            value: todaySessions.length,
-            detail: 'Completed study blocks logged today.',
-        },
-        {
-            label: 'Deep focus stars',
-            value: deepFocusSessionsCount,
-            detail: 'Deep sessions permanently brighten your sky.',
-        },
-        {
-            label: 'Focus time today',
-            value: minutesToDisplay(todayFocusMinutes),
-            detail: 'Total focused minutes accumulated today.',
-        },
-        {
-            label: 'Current streak',
-            value: `${user?.streakCount || 0}d`,
-            detail: 'Streaks amplify rare celestial effects.',
-        },
+        { label: 'Sessions today', value: todaySessions.length },
+        { label: 'Deep focus stars', value: deepFocusSessionsCount },
+        { label: 'Focus time today', value: minutesToDisplay(todayFocusMinutes) },
+        { label: 'Current streak', value: `${user?.streakCount || 0}d` },
     ];
 
     const getDynamicColor = useCallback(() => {
@@ -320,42 +292,6 @@ export default function PomodoroPage() {
             setTimeLeft(getDuration(sessionType));
         }
     }, [getDuration, isRunning, sessionType]);
-
-    const updateDurationSetting = useCallback((type, value) => {
-        const nextMinutes = Math.max(1, Math.min(getMaxMinutesForType(type), Number(value) || 1));
-        setSelectedPreset('custom');
-        setSettings((previous) => {
-            const next = { ...previous };
-
-            if (type === 'focus') {
-                next.workTime = nextMinutes;
-                next.focusDuration = nextMinutes;
-            } else if (type === 'shortBreak') {
-                next.shortBreakTime = nextMinutes;
-                next.shortBreakDuration = nextMinutes;
-            } else {
-                next.longBreakTime = nextMinutes;
-                next.longBreakDuration = nextMinutes;
-            }
-
-            return next;
-        });
-
-        if (!isRunning && sessionType === type) {
-            targetEndTimeRef.current = null;
-            setTimeLeft(nextMinutes * 60);
-        }
-    }, [isRunning, sessionType]);
-
-    const updateRoundSetting = useCallback((value) => {
-        const nextRounds = Math.max(2, Math.min(8, Number(value) || 2));
-        setSelectedPreset('custom');
-        setSettings((previous) => ({
-            ...previous,
-            roundsBeforeLongBreak: nextRounds,
-            sessionsUntilLongBreak: nextRounds,
-        }));
-    }, []);
 
     const applyPreset = (presetKey) => {
         if (presetKey === 'custom') {
@@ -582,6 +518,20 @@ export default function PomodoroPage() {
     }, [experienceMode, isRunning]);
 
     useEffect(() => {
+        if (!showExitConfirm) return undefined;
+
+        setExitConfirmReady(false);
+        exitConfirmTimeoutRef.current = setTimeout(() => {
+            setExitConfirmReady(true);
+        }, 2500);
+
+        return () => {
+            clearTimeout(exitConfirmTimeoutRef.current);
+            exitConfirmTimeoutRef.current = null;
+        };
+    }, [showExitConfirm]);
+
+    useEffect(() => {
         if (!user?.id) return;
 
         if (isRunning && sessionType === 'focus') {
@@ -623,6 +573,8 @@ export default function PomodoroPage() {
         setTimeLeft(getDuration('focus'));
         setShowCompletion(null);
         setTabSwitchWarning(false);
+        setShowExitConfirm(false);
+        setExitConfirmReady(false);
         setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
     };
 
@@ -642,36 +594,27 @@ export default function PomodoroPage() {
         }
     };
 
-    const startExitHold = () => {
-        if (exitHoldIntervalRef.current) return;
-
+    const requestExitDeepMode = () => {
         if (!isRunning) {
             setExperienceMode('normal');
             return;
         }
 
-        const startedAt = Date.now();
-        exitHoldIntervalRef.current = setInterval(() => {
-            const elapsed = Date.now() - startedAt;
-            const nextProgress = Math.min(100, (elapsed / HOLD_TO_EXIT_MS) * 100);
-            setExitHoldProgress(nextProgress);
-
-            if (nextProgress >= 100) {
-                clearInterval(exitHoldIntervalRef.current);
-                exitHoldIntervalRef.current = null;
-                handlePause();
-                setExperienceMode('normal');
-                setExitHoldProgress(0);
-                setTabSwitchWarning(false);
-            }
-        }, 16);
+        setShowExitConfirm(true);
     };
 
-    const cancelExitHold = () => {
-        if (!exitHoldIntervalRef.current) return;
-        clearInterval(exitHoldIntervalRef.current);
-        exitHoldIntervalRef.current = null;
-        setExitHoldProgress(0);
+    const confirmExitDeepMode = () => {
+        if (!exitConfirmReady) return;
+        handlePause();
+        setExperienceMode('normal');
+        setShowExitConfirm(false);
+        setExitConfirmReady(false);
+        setTabSwitchWarning(false);
+    };
+
+    const cancelExitDeepMode = () => {
+        setShowExitConfirm(false);
+        setExitConfirmReady(false);
     };
 
     const handleDrag = useCallback((event) => {
@@ -760,7 +703,7 @@ export default function PomodoroPage() {
 
     useEffect(() => () => {
         clearInterval(intervalRef.current);
-        clearInterval(exitHoldIntervalRef.current);
+        clearTimeout(exitConfirmTimeoutRef.current);
     }, []);
 
     if (isLoading) {
@@ -909,17 +852,9 @@ export default function PomodoroPage() {
                         />
 
                         <div className="relative z-10 flex min-h-[calc(100vh-7rem)] flex-col">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">
-                                        Deep Focus Mode
-                                    </div>
-                                    <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300">
-                                        {currentType.label} · Round {round}
-                                    </div>
-                                </div>
-                                <div className="max-w-md rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
-                                    {currentSessionTitle}
+                            <div className="flex justify-end">
+                                <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">
+                                    Deep Focus Mode
                                 </div>
                             </div>
 
@@ -936,19 +871,33 @@ export default function PomodoroPage() {
                                 )}
                             </AnimatePresence>
 
-                            <div className="flex flex-1 flex-col items-center justify-center text-center">
-                                <div className="mb-6 max-w-xl">
-                                    <div className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-200/70">
-                                        Your Sky responds in real time
-                                    </div>
-                                    <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-                                        Enter your own focused Sirius space
-                                    </h1>
-                                    <p className="mt-4 text-base leading-relaxed text-slate-300/80">
-                                        The interface quiets down here. Finish the session and Sirius will save a new permanent star to your personal sky.
-                                    </p>
-                                </div>
+                            <AnimatePresence>
+                                {showExitConfirm && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="mx-auto mt-5 flex flex-wrap items-center justify-center gap-3 rounded-full border border-white/12 bg-white/8 px-4 py-2 text-sm text-slate-200 backdrop-blur-md"
+                                    >
+                                        <span>Are you sure you want to leave Deep Focus?</span>
+                                        <button
+                                            onClick={confirmExitDeepMode}
+                                            disabled={!exitConfirmReady}
+                                            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${exitConfirmReady ? 'bg-white text-slate-900' : 'bg-white/10 text-slate-400'}`}
+                                        >
+                                            {exitConfirmReady ? 'Confirm exit' : 'Wait...'}
+                                        </button>
+                                        <button
+                                            onClick={cancelExitDeepMode}
+                                            className="rounded-full border border-white/12 px-4 py-1.5 text-xs font-semibold text-slate-200"
+                                        >
+                                            Stay
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
+                            <div className="flex flex-1 flex-col items-center justify-center text-center">
                                 <div className="relative mx-auto flex h-[360px] w-[360px] items-center justify-center rounded-full border border-white/10 bg-white/5 shadow-[0_0_80px_rgba(59,130,246,0.16)] backdrop-blur-md">
                                     <svg
                                         ref={svgRef}
@@ -997,21 +946,13 @@ export default function PomodoroPage() {
                                     )}
 
                                     <div className="relative z-10 flex flex-col items-center">
-                                        <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-300/70">
-                                            {currentType.eyebrow}
-                                        </div>
                                         <motion.div
                                             animate={{ scale: isRunning ? [1, 1.015, 1] : 1 }}
                                             transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
-                                            className="mt-5 text-[88px] font-semibold tracking-[-0.08em] text-white"
+                                            className="text-[88px] font-semibold tracking-[-0.08em] text-white"
                                         >
                                             {clock.minutes}:{clock.seconds}
                                         </motion.div>
-                                        <div className="mt-3 text-sm font-medium text-slate-300/80">
-                                            {isRunning
-                                                ? `${skyState.starsLit} stars lit · ${skyState.constellationCount} constellation traces`
-                                                : 'Drag the ring before you start to tune the session length'}
-                                        </div>
                                     </div>
                                 </div>
 
@@ -1023,20 +964,16 @@ export default function PomodoroPage() {
                                         {isRunning ? 'Pause' : 'Start'}
                                     </button>
                                     <button
-                                        onMouseDown={startExitHold}
-                                        onMouseUp={cancelExitHold}
-                                        onMouseLeave={cancelExitHold}
-                                        onTouchStart={startExitHold}
-                                        onTouchEnd={cancelExitHold}
-                                        className="relative overflow-hidden rounded-full border border-white/15 px-7 py-3 text-sm font-semibold text-slate-100"
+                                        onClick={resetTimer}
+                                        className="rounded-full border border-white/15 px-7 py-3 text-sm font-semibold text-slate-100"
                                     >
-                                        <span
-                                            className="absolute inset-y-0 left-0 bg-white/10 transition-[width]"
-                                            style={{ width: `${exitHoldProgress}%` }}
-                                        />
-                                        <span className="relative z-10">
-                                            {isRunning ? 'Hold to exit focus' : 'Return to dashboard'}
-                                        </span>
+                                        Stop
+                                    </button>
+                                    <button
+                                        onClick={requestExitDeepMode}
+                                        className="rounded-full border border-white/15 px-7 py-3 text-sm font-semibold text-slate-100"
+                                    >
+                                        Return to dashboard
                                     </button>
                                 </div>
                             </div>
@@ -1050,19 +987,7 @@ export default function PomodoroPage() {
                         exit={{ opacity: 0, y: -10 }}
                         className="mx-auto max-w-6xl"
                     >
-                        <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                            <div className="max-w-2xl">
-                                <div className="inline-flex rounded-full border border-slate-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-600 shadow-sm">
-                                    Sirius Pomodoro
-                                </div>
-                                <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-900">
-                                    A premium focus console for the way you actually study
-                                </h1>
-                                <p className="mt-4 text-base leading-relaxed text-slate-500">
-                                    Normal Mode keeps your study day organized with tasks, presets, and clean timer controls. Deep Focus Mode strips the experience down into an immersive Sirius space when you want to disappear into the work.
-                                </p>
-                            </div>
-
+                        <div className="mb-6 flex justify-end">
                             <div className="inline-flex rounded-full border border-slate-200 bg-white/80 p-1.5 shadow-sm">
                                 <button
                                     onClick={() => setExperienceMode('normal')}
@@ -1079,36 +1004,8 @@ export default function PomodoroPage() {
                             </div>
                         </div>
 
-                        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                            <div className="space-y-6">
+                        <div className="space-y-6">
                                 <div className="overflow-hidden rounded-[32px] border border-slate-200 bg-white/80 shadow-[0_30px_70px_rgba(148,163,184,0.12)] backdrop-blur-md">
-                                    <div className="border-b border-slate-100 px-6 py-5">
-                                        <div className="flex flex-wrap items-start justify-between gap-4">
-                                            <div>
-                                                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
-                                                    {currentType.eyebrow}
-                                                </div>
-                                                <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-                                                    {currentSessionTitle}
-                                                </h2>
-                                                <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-500">
-                                                    {currentType.description}
-                                                </p>
-                                            </div>
-                                            <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 px-4 py-3">
-                                                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                                    Current cadence
-                                                </div>
-                                                <div className="mt-1 text-sm font-semibold text-slate-900">
-                                                    {safeSettings.workTime} / {safeSettings.shortBreakTime} / {safeSettings.longBreakTime}
-                                                </div>
-                                                <div className="mt-1 text-xs text-slate-500">
-                                                    Long break after {safeSettings.roundsBeforeLongBreak} focus rounds
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
                                     <div className="px-6 pb-7 pt-6">
                                         <div className="mb-6 flex flex-wrap items-center gap-2">
                                             {SESSION_TYPES.map((type) => (
@@ -1131,7 +1028,7 @@ export default function PomodoroPage() {
                                             ))}
                                         </div>
 
-                                        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                                        <div className="grid gap-8 lg:grid-cols-[0.95fr_0.95fr] lg:items-center">
                                             <div className="flex justify-center">
                                                 <div className="relative h-[320px] w-[320px] select-none">
                                                     <svg
@@ -1188,107 +1085,110 @@ export default function PomodoroPage() {
                                                     )}
 
                                                     <div className="absolute inset-6 flex flex-col items-center justify-center rounded-full bg-[radial-gradient(circle_at_top,#ffffff_0%,#f7fbff_52%,#eef6ff_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]">
-                                                        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-500">
-                                                            {currentType.label}
-                                                        </div>
-                                                        <div className="mt-5 text-[78px] font-semibold tracking-[-0.08em] text-slate-900">
+                                                        <div className="text-[82px] font-semibold tracking-[-0.08em] text-slate-900">
                                                             {clock.minutes}:{clock.seconds}
                                                         </div>
-                                                        <div className="mt-3 rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
-                                                            Round {round} · {Math.round(progress)}% charged
-                                                        </div>
-                                                        <button
-                                                            onClick={isRunning ? handlePause : handleStartOrResume}
-                                                            className="mt-6 inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(79,110,247,0.28)] transition-transform hover:-translate-y-0.5"
-                                                            style={{ backgroundColor: activeColor }}
-                                                        >
-                                                            {isRunning ? 'Pause session' : 'Start session'}
-                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <div className="rounded-[28px] border border-slate-100 bg-slate-50/80 p-5">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <div>
-                                                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                                                Presets
-                                                            </div>
-                                                            <div className="mt-1 text-lg font-semibold text-slate-900">
-                                                                Switch between daily rhythms instantly
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => setExperienceMode('deep')}
-                                                            className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-50"
-                                                        >
-                                                            Enter Deep Focus
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="mt-5 grid gap-3 md:grid-cols-3">
+                                            <div className="space-y-4">
+                                                <div className="rounded-[28px] border border-slate-100 bg-slate-50/80 p-4">
+                                                    <div className="flex flex-wrap gap-2">
                                                         {PRESET_OPTIONS.map((preset) => (
                                                             <button
                                                                 key={preset.key}
                                                                 onClick={() => applyPreset(preset.key)}
-                                                                className={`rounded-[24px] border px-4 py-4 text-left transition-all ${selectedPreset === preset.key
+                                                                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${selectedPreset === preset.key
                                                                     ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                                                                     : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'
                                                                     }`}
                                                             >
-                                                                <div className="text-sm font-semibold">{preset.label}</div>
-                                                                <p className={`mt-2 text-xs leading-relaxed ${selectedPreset === preset.key ? 'text-slate-200' : 'text-slate-500'}`}>
-                                                                    {preset.description}
-                                                                </p>
+                                                                {preset.label}
                                                             </button>
                                                         ))}
                                                     </div>
-
-                                                    <div className="mt-5 grid gap-3 sm:grid-cols-4">
-                                                        <button
-                                                            onClick={isRunning ? handlePause : handleStartOrResume}
-                                                            className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
-                                                        >
-                                                            {isRunning ? 'Pause' : 'Start'}
-                                                        </button>
-                                                        <button
-                                                            onClick={resetTimer}
-                                                            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
-                                                        >
-                                                            Reset
-                                                        </button>
-                                                        <button
-                                                            onClick={handleSkip}
-                                                            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
-                                                        >
-                                                            Skip
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setExperienceMode('deep')}
-                                                            className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100"
-                                                        >
-                                                            Deep Focus
-                                                        </button>
+                                                </div>
+                                                <div className="rounded-[28px] border border-slate-100 bg-white p-4">
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="label">Linked course</label>
+                                                            <select
+                                                                className="input !rounded-[18px]"
+                                                                value={selectedCourseId}
+                                                                onChange={(event) => {
+                                                                    setSelectedCourseId(event.target.value);
+                                                                    setSelectedTaskId('');
+                                                                }}
+                                                                disabled={isRunning}
+                                                            >
+                                                                <option value="">No course</option>
+                                                                {userCourses.map((course) => (
+                                                                    <option key={course.id} value={course.id}>
+                                                                        {course.icon} {course.courseName}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="label">Linked task</label>
+                                                            <select
+                                                                className="input !rounded-[18px]"
+                                                                value={selectedTaskId}
+                                                                onChange={(event) => setSelectedTaskId(event.target.value)}
+                                                                disabled={isRunning}
+                                                            >
+                                                                <option value="">No task</option>
+                                                                {availableTasks.map((task) => (
+                                                                    <option key={task.id} value={task.id}>
+                                                                        {task.title}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                                                <div className="grid gap-3 sm:grid-cols-2">
                                                     {heroStats.map((stat) => (
-                                                        <div key={stat.label} className="rounded-[24px] border border-slate-100 bg-white px-4 py-4 shadow-sm">
-                                                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                                        <div key={stat.label} className="rounded-[22px] border border-slate-100 bg-white px-4 py-3 shadow-sm">
+                                                            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                                                                 {stat.label}
                                                             </div>
-                                                            <div className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                                                            <div className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
                                                                 {stat.value}
                                                             </div>
-                                                            <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                                                                {stat.detail}
-                                                            </p>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <div className="mt-6 grid gap-3 sm:grid-cols-4">
+                                            <button
+                                                onClick={isRunning ? handlePause : handleStartOrResume}
+                                                className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+                                            >
+                                                {isRunning ? 'Pause' : 'Start'}
+                                            </button>
+                                            <button
+                                                onClick={resetTimer}
+                                                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+                                            >
+                                                Reset
+                                            </button>
+                                            <button
+                                                onClick={handleSkip}
+                                                className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+                                            >
+                                                Skip
+                                            </button>
+                                            <button
+                                                onClick={() => setExperienceMode('deep')}
+                                                className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100"
+                                            >
+                                                Deep Focus
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -1299,179 +1199,6 @@ export default function PomodoroPage() {
                                     totalMinutes={user?.totalFocusMinutes || 0}
                                     focusProgress={isRunning && sessionType === 'focus' ? runningProgress : 0}
                                 />
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className="rounded-[32px] border border-slate-200 bg-white/85 p-6 shadow-[0_24px_60px_rgba(148,163,184,0.12)]">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div>
-                                            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
-                                                Session goals
-                                            </div>
-                                            <h3 className="mt-2 text-xl font-semibold text-slate-900">
-                                                Keep the work block anchored
-                                            </h3>
-                                            <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                                                Link the session to a course, choose a task, and give the timer a clear title before you start.
-                                            </p>
-                                        </div>
-                                        <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                            {availableTasks.length} open tasks
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 space-y-4">
-                                        <div>
-                                            <label className="label">Session label</label>
-                                            <input
-                                                className="input !rounded-[20px]"
-                                                value={sessionLabel}
-                                                onChange={(event) => setSessionLabel(event.target.value)}
-                                                placeholder="e.g. Linear algebra revision"
-                                                disabled={isRunning}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="label">Linked course</label>
-                                            <select
-                                                className="input !rounded-[20px]"
-                                                value={selectedCourseId}
-                                                onChange={(event) => {
-                                                    setSelectedCourseId(event.target.value);
-                                                    setSelectedTaskId('');
-                                                }}
-                                                disabled={isRunning}
-                                            >
-                                                <option value="">No course linked</option>
-                                                {userCourses.map((course) => (
-                                                    <option key={course.id} value={course.id}>
-                                                        {course.icon} {course.courseName}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="label">Linked task</label>
-                                            <select
-                                                className="input !rounded-[20px]"
-                                                value={selectedTaskId}
-                                                onChange={(event) => setSelectedTaskId(event.target.value)}
-                                                disabled={isRunning}
-                                            >
-                                                <option value="">No task linked</option>
-                                                {availableTasks.map((task) => (
-                                                    <option key={task.id} value={task.id}>
-                                                        {task.title}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6">
-                                        <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                            Visible task list
-                                        </div>
-                                        <div className="space-y-2">
-                                            {availableTasks.length === 0 ? (
-                                                <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-4 text-sm leading-relaxed text-slate-500">
-                                                    Add a few tasks to Sirius and they will appear here as quick session goals.
-                                                </div>
-                                            ) : (
-                                                availableTasks.slice(0, 4).map((task) => (
-                                                    <button
-                                                        key={task.id}
-                                                        onClick={() => setSelectedTaskId(task.id)}
-                                                        className={`flex w-full items-center justify-between rounded-[22px] border px-4 py-3 text-left transition-all ${selectedTaskId === task.id
-                                                            ? 'border-slate-900 bg-slate-900 text-white'
-                                                            : 'border-slate-200 bg-slate-50/70 text-slate-600 hover:border-slate-300 hover:text-slate-900'
-                                                            }`}
-                                                    >
-                                                        <span className="font-medium">{task.title}</span>
-                                                        <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${selectedTaskId === task.id ? 'bg-white/10 text-white' : 'bg-white text-slate-400'}`}>
-                                                            Goal
-                                                        </span>
-                                                    </button>
-                                                ))
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="rounded-[32px] border border-slate-200 bg-white/85 p-6 shadow-[0_24px_60px_rgba(148,163,184,0.12)]">
-                                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
-                                        Custom cadence
-                                    </div>
-                                    <h3 className="mt-2 text-xl font-semibold text-slate-900">
-                                        Tune Sirius around your workload
-                                    </h3>
-                                    <p className="mt-2 text-sm leading-relaxed text-slate-500">
-                                        Adjust the lengths directly when your day needs something different from the default rhythms.
-                                    </p>
-
-                                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                                        <div>
-                                            <label className="label">Focus minutes</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="120"
-                                                className="input !rounded-[20px]"
-                                                value={safeSettings.workTime}
-                                                onChange={(event) => updateDurationSetting('focus', event.target.value)}
-                                                disabled={isRunning}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="label">Short break</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="30"
-                                                className="input !rounded-[20px]"
-                                                value={safeSettings.shortBreakTime}
-                                                onChange={(event) => updateDurationSetting('shortBreak', event.target.value)}
-                                                disabled={isRunning}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="label">Long break</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="60"
-                                                className="input !rounded-[20px]"
-                                                value={safeSettings.longBreakTime}
-                                                onChange={(event) => updateDurationSetting('longBreak', event.target.value)}
-                                                disabled={isRunning}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="label">Rounds before long break</label>
-                                            <input
-                                                type="number"
-                                                min="2"
-                                                max="8"
-                                                className="input !rounded-[20px]"
-                                                value={safeSettings.roundsBeforeLongBreak}
-                                                onChange={(event) => updateRoundSetting(event.target.value)}
-                                                disabled={isRunning}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-6 rounded-[26px] border border-sky-100 bg-sky-50/70 px-4 py-4">
-                                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-600">
-                                            Personal sky progression
-                                        </div>
-                                        <p className="mt-2 text-sm leading-relaxed text-sky-900/80">
-                                            25% progress lights fresh stars, 50% starts connecting constellation fragments, 75% strengthens orbit and nebula effects, and a completed focus session saves a permanent upgrade to your sky.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </motion.section>
                 )}
