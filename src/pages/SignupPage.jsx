@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
 import {
+    clearAuthAttemptWindow,
     getAuthErrorMessage,
     normalizeEmail,
+    reserveAuthAttempt,
     validateSignupForm,
 } from '../utils/auth';
 
@@ -35,9 +37,16 @@ export default function SignupPage() {
             return;
         }
 
+        const rateLimitMessage = reserveAuthAttempt('signup-password');
+        if (rateLimitMessage) {
+            setError(rateLimitMessage);
+            return;
+        }
+
         setIsLoading(true);
         try {
             const result = await signup(name, normalizedEmail, password);
+            clearAuthAttemptWindow('signup-password');
             navigate('/login', {
                 replace: true,
                 state: {
@@ -53,12 +62,18 @@ export default function SignupPage() {
 
     const handleGoogleLogin = async () => {
         setError('');
+        const rateLimitMessage = reserveAuthAttempt('signup-google');
+        if (rateLimitMessage) {
+            setError(rateLimitMessage);
+            return;
+        }
         setIsLoading(true);
         try {
             const result = await loginWithGoogle();
             if (result?.redirecting) {
                 return;
             }
+            clearAuthAttemptWindow('signup-google');
             navigate('/');
         } catch (err) {
             setError(getAuthErrorMessage(err));

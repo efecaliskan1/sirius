@@ -8,6 +8,7 @@ import { checkNewBadges, getSessionStats } from '../utils/rewardEngine';
 import { getDateKeyInTurkey, getToday, minutesToDisplay } from '../utils/helpers';
 import { getWeekKey } from '../utils/social';
 import { setAmbientVolume, startAmbientSound, stopAmbientSound } from '../utils/ambientSounds';
+import { useLocale } from '../utils/i18n';
 
 const SESSION_TYPES = [
     { key: 'focus', label: 'Focus' },
@@ -44,6 +45,103 @@ const PRESET_OPTIONS = [
         description: 'Tune the cadence around your own workload.',
     },
 ];
+
+const POMODORO_COPY = {
+    en: {
+        sessionTypes: { focus: 'Focus', shortBreak: 'Short Break', longBreak: 'Long Break' },
+        soundLabels: { none: 'Silent', rain: 'Rain', cafe: 'Cafe', library: 'Library' },
+        heroStats: {
+            sessionsToday: 'Sessions today',
+            deepFocusStars: 'Deep focus stars',
+            focusTimeToday: 'Focus time today',
+            currentStreak: 'Current streak',
+        },
+        ambient: 'Ambient',
+        ambientSound: 'Ambient sound',
+        deepFocusMode: 'Deep Focus Mode',
+        normalMode: 'Normal Mode',
+        linkedCourse: 'Linked course',
+        linkedTask: 'Linked task',
+        noCourse: 'No course',
+        noTask: 'No task',
+        start: 'Start',
+        pause: 'Pause',
+        reset: 'Reset',
+        skip: 'Skip',
+        stop: 'Stop',
+        deepFocus: 'Deep Focus',
+        returnToDashboard: 'Return to dashboard',
+        tabWarning: 'Stay in this Sirius space for a smoother deep focus session.',
+        leaveConfirm: 'Are you sure you want to leave Deep Focus?',
+        confirmExit: 'Confirm exit',
+        wait: 'Wait...',
+        stay: 'Stay',
+        sessionComplete: 'Session complete',
+        skyUpgrade: 'Sirius saved a new sky upgrade',
+        deepCompletion: 'This deep focus block permanently brightened your personal sky.',
+        normalCompletion: 'This completed session added steady progress to your focus record.',
+        sessionLabel: 'Session label',
+        coins: 'Coins',
+        focus: 'Focus',
+        sessionNote: 'Session note',
+        notePlaceholder: 'Capture what moved forward in this session.',
+        streakNow: 'Streak now',
+        continue: 'Continue',
+        focusSession: 'Focus Session',
+        badgeUnlocked: 'Badge unlocked',
+        breakComplete: 'Break complete. Sirius is ready for another focus block.',
+        breakSkipped: 'Break skipped. Your next focus block is ready.',
+        focusSkipped: 'Focus block skipped. Sirius moved you to the next recovery phase.',
+        modeTag: { deep: 'Deep focus', normal: 'Normal mode' },
+    },
+    tr: {
+        sessionTypes: { focus: 'Odak', shortBreak: 'Kısa mola', longBreak: 'Uzun mola' },
+        soundLabels: { none: 'Sessiz', rain: 'Yağmur', cafe: 'Kafe', library: 'Kütüphane' },
+        heroStats: {
+            sessionsToday: 'Bugünkü oturumlar',
+            deepFocusStars: 'Derin odak yıldızları',
+            focusTimeToday: 'Bugünkü odak süresi',
+            currentStreak: 'Güncel seri',
+        },
+        ambient: 'Ortam',
+        ambientSound: 'Ortam sesi',
+        deepFocusMode: 'Derin odak modu',
+        normalMode: 'Normal mod',
+        linkedCourse: 'Bağlı ders',
+        linkedTask: 'Bağlı görev',
+        noCourse: 'Ders yok',
+        noTask: 'Görev yok',
+        start: 'Başlat',
+        pause: 'Duraklat',
+        reset: 'Sıfırla',
+        skip: 'Geç',
+        stop: 'Durdur',
+        deepFocus: 'Derin odak',
+        returnToDashboard: 'Panele dön',
+        tabWarning: 'Daha akıcı bir derin odak için bu Sirius alanında kal.',
+        leaveConfirm: 'Derin odaktan çıkmak istediğine emin misin?',
+        confirmExit: 'Çıkışı onayla',
+        wait: 'Bekle...',
+        stay: 'Kal',
+        sessionComplete: 'Oturum tamamlandı',
+        skyUpgrade: 'Sirius gökyüzüne yeni bir gelişme ekledi',
+        deepCompletion: 'Bu derin odak oturumu kişisel gökyüzünü kalıcı olarak güçlendirdi.',
+        normalCompletion: 'Bu oturum, odak kayıtlarına düzenli bir ilerleme ekledi.',
+        sessionLabel: 'Oturum başlığı',
+        coins: 'Jeton',
+        focus: 'Odak',
+        sessionNote: 'Oturum notu',
+        notePlaceholder: 'Bu oturumda nelerin ilerlediğini kısaca not et.',
+        streakNow: 'Yeni seri',
+        continue: 'Devam et',
+        focusSession: 'Odak oturumu',
+        badgeUnlocked: 'Rozet açıldı',
+        breakComplete: 'Mola tamamlandı. Sirius yeni odak bloğu için hazır.',
+        breakSkipped: 'Mola geçildi. Sıradaki odak bloğun hazır.',
+        focusSkipped: 'Odak bloğu geçildi. Sirius seni bir sonraki mola aşamasına taşıdı.',
+        modeTag: { deep: 'Derin odak', normal: 'Normal mod' },
+    },
+};
 
 const DEEP_SPACE_STARS = [
     { left: '8%', top: '18%', size: 2, delay: 0.2 },
@@ -113,6 +211,39 @@ function formatClock(timeLeft) {
     };
 }
 
+function playCompletionChime() {
+    if (typeof window === 'undefined') return;
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+
+    const notes = [
+        { frequency: 880, duration: 0.12, delay: 0 },
+        { frequency: 1174, duration: 0.14, delay: 0.14 },
+    ];
+
+    notes.forEach(({ frequency, duration, delay }) => {
+        const oscillator = ctx.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, ctx.currentTime + delay);
+        oscillator.connect(gain);
+        oscillator.start(ctx.currentTime + delay);
+        oscillator.stop(ctx.currentTime + delay + duration);
+    });
+
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+
+    window.setTimeout(() => {
+        ctx.close().catch(() => { });
+    }, 500);
+}
+
 export default function PomodoroPage() {
     const user = useAuthStore((s) => s.user);
     const updateUser = useAuthStore((s) => s.updateUser);
@@ -153,9 +284,10 @@ export default function PomodoroPage() {
     const [tabSwitchWarning, setTabSwitchWarning] = useState(false);
     const [showExitConfirm, setShowExitConfirm] = useState(false);
     const [exitConfirmReady, setExitConfirmReady] = useState(false);
+    const locale = useLocale();
+    const copy = POMODORO_COPY[locale] || POMODORO_COPY.en;
 
     const intervalRef = useRef(null);
-    const bellAudioRef = useRef(null);
     const svgRef = useRef(null);
     const targetEndTimeRef = useRef(null);
     const exitConfirmTimeoutRef = useRef(null);
@@ -197,7 +329,7 @@ export default function PomodoroPage() {
 
     const currentSessionTitle = selectedTask?.title
         || selectedCourse?.courseName
-        || 'Focus Session';
+        || copy.focusSession;
 
     const deepFocusSessionsCount = useMemo(
         () => sessions.filter((session) => session.userId === user?.id && session.completed && session.mode === 'deep').length,
@@ -223,10 +355,10 @@ export default function PomodoroPage() {
     const clock = formatClock(timeLeft);
 
     const heroStats = [
-        { label: 'Sessions today', value: todaySessions.length },
-        { label: 'Deep focus stars', value: deepFocusSessionsCount },
-        { label: 'Focus time today', value: minutesToDisplay(todayFocusMinutes) },
-        { label: 'Current streak', value: `${user?.streakCount || 0}d` },
+        { label: copy.heroStats.sessionsToday, value: todaySessions.length },
+        { label: copy.heroStats.deepFocusStars, value: deepFocusSessionsCount },
+        { label: copy.heroStats.focusTimeToday, value: minutesToDisplay(todayFocusMinutes) },
+        { label: copy.heroStats.currentStreak, value: `${user?.streakCount || 0}d` },
     ];
 
     const soundOptions = AMBIENT_SOUNDS.filter((sound) => ['none', 'rain', 'cafe', 'library'].includes(sound.id));
@@ -307,10 +439,7 @@ export default function PomodoroPage() {
         targetEndTimeRef.current = null;
         stopAmbientSound();
 
-        if (!bellAudioRef.current) {
-            bellAudioRef.current = new Audio('https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3');
-        }
-        bellAudioRef.current.play().catch(() => { });
+        playCompletionChime();
 
         if (sessionType === 'focus') {
             const plannedMinutes = safeSettings.workTime;
@@ -395,7 +524,7 @@ export default function PomodoroPage() {
             for (const badge of newBadges) {
                 addBadge({ userId: user.id, badgeKey: badge.badgeKey });
                 setTimeout(() => {
-                    addToast({ type: 'reward', icon: badge.icon, message: `Badge unlocked: ${badge.badgeName}!` });
+                    addToast({ type: 'reward', icon: badge.icon, message: `${copy.badgeUnlocked}: ${badge.badgeName}!` });
                 }, 1200);
             }
 
@@ -407,7 +536,7 @@ export default function PomodoroPage() {
             setSessionType('focus');
             setTimeLeft(getDuration('focus'));
             setPresence({ focusingNow: false, currentSessionTitle: '' }).catch(() => { });
-        addToast({ type: 'success', icon: '☕', message: 'Break complete. Sirius is ready for another focus block.' });
+            addToast({ type: 'success', icon: '☕', message: copy.breakComplete });
         }
     }, [
         addBadge,
@@ -429,6 +558,8 @@ export default function PomodoroPage() {
         user,
         userCourses,
         currentSessionTitle,
+        copy.badgeUnlocked,
+        copy.breakComplete,
     ]);
 
     const syncTimeLeft = useCallback(() => {
@@ -572,9 +703,9 @@ export default function PomodoroPage() {
         setTimeLeft(getDuration(nextSession.type));
 
         if (sessionType === 'focus') {
-            addToast({ type: 'success', icon: '⏭️', message: 'Focus block skipped. Sirius moved you to the next recovery phase.' });
+            addToast({ type: 'success', icon: '⏭️', message: copy.focusSkipped });
         } else {
-            addToast({ type: 'success', icon: '⏭️', message: 'Break skipped. Your next focus block is ready.' });
+            addToast({ type: 'success', icon: '⏭️', message: copy.breakSkipped });
         }
     };
 
@@ -753,25 +884,25 @@ export default function PomodoroPage() {
                             <div className="mb-5 flex items-start justify-between gap-4">
                                 <div>
                                     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-500">
-                                        Session complete
+                                        {copy.sessionComplete}
                                     </div>
                                     <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-                                        Sirius saved a new sky upgrade
+                                        {copy.skyUpgrade}
                                     </h2>
                                     <p className="mt-2 text-sm leading-relaxed text-slate-500">
                                         {showCompletion.mode === 'deep'
-                                            ? 'This deep focus block permanently brightened your personal sky.'
-                                            : 'This completed session added steady progress to your focus record.'}
+                                            ? copy.deepCompletion
+                                            : copy.normalCompletion}
                                     </p>
                                 </div>
                                 <div className="rounded-2xl bg-sky-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                                    {showCompletion.mode === 'deep' ? 'Deep focus' : 'Normal mode'}
+                                    {showCompletion.mode === 'deep' ? copy.modeTag.deep : copy.modeTag.normal}
                                 </div>
                             </div>
 
                             <div className="rounded-[28px] border border-slate-100 bg-slate-50/80 p-5">
                                 <div className="text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                    Session label
+                                    {copy.sessionLabel}
                                 </div>
                                 <div className="mt-1 text-lg font-semibold text-slate-900">{showCompletion.label}</div>
                                 {(showCompletion.courseName || showCompletion.taskName) && (
@@ -783,7 +914,7 @@ export default function PomodoroPage() {
                                 <div className="mt-5 grid grid-cols-3 gap-3">
                                     <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
                                         <div className="text-lg font-bold text-slate-900">+{showCompletion.coins}</div>
-                                        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Coins</div>
+                                        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">{copy.coins}</div>
                                     </div>
                                     <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
                                         <div className="text-lg font-bold text-slate-900">+{showCompletion.xp}</div>
@@ -791,18 +922,18 @@ export default function PomodoroPage() {
                                     </div>
                                     <div className="rounded-2xl bg-white px-4 py-3 text-center shadow-sm">
                                         <div className="text-lg font-bold text-slate-900">{minutesToDisplay(showCompletion.minutes)}</div>
-                                        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">Focus</div>
+                                        <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-400">{copy.focus}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="mt-5">
                                 <label className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                    Session note
+                                    {copy.sessionNote}
                                 </label>
                                 <textarea
                                     className="input min-h-[96px] resize-none !rounded-[24px] !px-4 !py-3 text-sm"
-                                    placeholder="Capture what moved forward in this session."
+                                    placeholder={copy.notePlaceholder}
                                     value={sessionNote}
                                     onChange={(event) => setSessionNote(event.target.value)}
                                 />
@@ -810,7 +941,7 @@ export default function PomodoroPage() {
 
                             <div className="mt-6 flex items-center justify-between">
                                 <div className="text-sm font-medium text-slate-500">
-                                    Streak now <span className="font-bold text-slate-900">{showCompletion.streak}d</span>
+                                    {copy.streakNow} <span className="font-bold text-slate-900">{showCompletion.streak}d</span>
                                 </div>
                                 <button
                                     onClick={() => {
@@ -821,7 +952,7 @@ export default function PomodoroPage() {
                                     }}
                                     className="btn-primary justify-center rounded-2xl px-6 py-3"
                                 >
-                                    Continue
+                                    {copy.continue}
                                 </button>
                             </div>
                         </motion.div>
@@ -866,12 +997,12 @@ export default function PomodoroPage() {
                         <div className="relative z-10 flex min-h-screen flex-col">
                             <div className="flex items-start justify-between gap-4">
                                 <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-200">
-                                    Deep Focus Mode
+                                    {copy.deepFocusMode}
                                 </div>
                                 <div className="w-full max-w-sm rounded-[24px] border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-md">
                                     <div className="mb-3 flex items-center justify-between gap-3">
                                         <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300/70">
-                                            Ambient
+                                            {copy.ambient}
                                         </span>
                                         <span className="text-xs font-medium text-slate-300/70">
                                             {ambientVolume}%
@@ -888,7 +1019,7 @@ export default function PomodoroPage() {
                                                     }`}
                                             >
                                                 <span className="mr-1.5">{sound.emoji}</span>
-                                                {sound.label}
+                                                {copy.soundLabels[sound.id] || sound.label}
                                             </button>
                                         ))}
                                     </div>
@@ -911,7 +1042,7 @@ export default function PomodoroPage() {
                                         exit={{ opacity: 0, y: -8 }}
                                         className="mx-auto mt-6 rounded-full border border-amber-300/20 bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-100"
                                     >
-                                        Stay in this Sirius space for a smoother deep focus session.
+                                        {copy.tabWarning}
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -924,19 +1055,19 @@ export default function PomodoroPage() {
                                         exit={{ opacity: 0, y: 10 }}
                                         className="mx-auto mt-5 flex flex-wrap items-center justify-center gap-3 rounded-full border border-white/12 bg-white/8 px-4 py-2 text-sm text-slate-200 backdrop-blur-md"
                                     >
-                                        <span>Are you sure you want to leave Deep Focus?</span>
+                                        <span>{copy.leaveConfirm}</span>
                                         <button
                                             onClick={confirmExitDeepMode}
                                             disabled={!exitConfirmReady}
                                             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${exitConfirmReady ? 'bg-white text-slate-900' : 'bg-white/10 text-slate-400'}`}
                                         >
-                                            {exitConfirmReady ? 'Confirm exit' : 'Wait...'}
+                                            {exitConfirmReady ? copy.confirmExit : copy.wait}
                                         </button>
                                         <button
                                             onClick={cancelExitDeepMode}
                                             className="rounded-full border border-white/12 px-4 py-1.5 text-xs font-semibold text-slate-200"
                                         >
-                                            Stay
+                                            {copy.stay}
                                         </button>
                                     </motion.div>
                                 )}
@@ -1006,19 +1137,19 @@ export default function PomodoroPage() {
                                         onClick={isRunning ? handlePause : handleStartOrResume}
                                         className="rounded-full bg-white px-8 py-3 text-sm font-semibold text-slate-900 shadow-[0_18px_45px_rgba(255,255,255,0.14)] transition-transform hover:-translate-y-0.5"
                                     >
-                                        {isRunning ? 'Pause' : 'Start'}
+                                        {isRunning ? copy.pause : copy.start}
                                     </button>
                                     <button
                                         onClick={resetTimer}
                                         className="rounded-full border border-white/15 px-7 py-3 text-sm font-semibold text-slate-100"
                                     >
-                                        Stop
+                                        {copy.stop}
                                     </button>
                                     <button
                                         onClick={requestExitDeepMode}
                                         className="rounded-full border border-white/15 px-7 py-3 text-sm font-semibold text-slate-100"
                                     >
-                                        Return to dashboard
+                                        {copy.returnToDashboard}
                                     </button>
                                 </div>
                             </div>
@@ -1038,13 +1169,13 @@ export default function PomodoroPage() {
                                     onClick={() => setExperienceMode('normal')}
                                     className="rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm"
                                 >
-                                    Normal Mode
+                                    {copy.normalMode}
                                 </button>
                                 <button
                                     onClick={() => setExperienceMode('deep')}
                                     className="rounded-full px-5 py-2.5 text-sm font-semibold text-slate-500 transition-colors hover:text-slate-900"
                                 >
-                                    Deep Focus Mode
+                                    {copy.deepFocusMode}
                                 </button>
                             </div>
                         </div>
@@ -1068,7 +1199,7 @@ export default function PomodoroPage() {
                                                         : 'bg-slate-100/80 text-slate-500 hover:bg-slate-200 hover:text-slate-900'
                                                         }`}
                                                 >
-                                                    {type.label}
+                                                    {copy.sessionTypes[type.key] || type.label}
                                                 </button>
                                             ))}
                                         </div>
@@ -1158,7 +1289,7 @@ export default function PomodoroPage() {
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between gap-3">
                                                             <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                                                                Ambient sound
+                                                                {copy.ambientSound}
                                                             </label>
                                                             <span className="text-xs font-medium text-slate-400">
                                                                 {ambientVolume}%
@@ -1175,7 +1306,7 @@ export default function PomodoroPage() {
                                                                         }`}
                                                                 >
                                                                     <span className="mr-1.5">{sound.emoji}</span>
-                                                                    {sound.label}
+                                                                    {copy.soundLabels[sound.id] || sound.label}
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -1192,7 +1323,7 @@ export default function PomodoroPage() {
                                                 <div className="rounded-[28px] border border-slate-100 bg-white p-4">
                                                     <div className="space-y-3">
                                                         <div>
-                                                            <label className="label">Linked course</label>
+                                                            <label className="label">{copy.linkedCourse}</label>
                                                             <select
                                                                 className="input !rounded-[18px]"
                                                                 value={selectedCourseId}
@@ -1202,7 +1333,7 @@ export default function PomodoroPage() {
                                                                 }}
                                                                 disabled={isRunning}
                                                             >
-                                                                <option value="">No course</option>
+                                                                <option value="">{copy.noCourse}</option>
                                                                 {userCourses.map((course) => (
                                                                     <option key={course.id} value={course.id}>
                                                                         {course.icon} {course.courseName}
@@ -1211,14 +1342,14 @@ export default function PomodoroPage() {
                                                             </select>
                                                         </div>
                                                         <div>
-                                                            <label className="label">Linked task</label>
+                                                            <label className="label">{copy.linkedTask}</label>
                                                             <select
                                                                 className="input !rounded-[18px]"
                                                                 value={selectedTaskId}
                                                                 onChange={(event) => setSelectedTaskId(event.target.value)}
                                                                 disabled={isRunning}
                                                             >
-                                                                <option value="">No task</option>
+                                                                <option value="">{copy.noTask}</option>
                                                                 {availableTasks.map((task) => (
                                                                     <option key={task.id} value={task.id}>
                                                                         {task.title}
@@ -1249,25 +1380,25 @@ export default function PomodoroPage() {
                                                 onClick={isRunning ? handlePause : handleStartOrResume}
                                                 className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
                                             >
-                                                {isRunning ? 'Pause' : 'Start'}
+                                                {isRunning ? copy.pause : copy.start}
                                             </button>
                                             <button
                                                 onClick={resetTimer}
                                                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
                                             >
-                                                Reset
+                                                {copy.reset}
                                             </button>
                                             <button
                                                 onClick={handleSkip}
                                                 className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
                                             >
-                                                Skip
+                                                {copy.skip}
                                             </button>
                                             <button
                                                 onClick={() => setExperienceMode('deep')}
                                                 className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 transition-colors hover:bg-sky-100"
                                             >
-                                                Deep Focus
+                                                {copy.deepFocus}
                                             </button>
                                         </div>
                                     </div>

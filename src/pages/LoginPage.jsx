@@ -5,8 +5,10 @@ import useAuthStore from '../store/authStore';
 import { COMPANION_STAGES } from '../utils/constants';
 import { formatDateTimeInTurkey } from '../utils/helpers';
 import {
+    clearAuthAttemptWindow,
     getAuthErrorMessage,
     normalizeEmail,
+    reserveAuthAttempt,
     validateLoginForm,
 } from '../utils/auth';
 
@@ -69,9 +71,16 @@ export default function LoginPage() {
             return;
         }
 
+        const rateLimitMessage = reserveAuthAttempt('login-password');
+        if (rateLimitMessage) {
+            setError(rateLimitMessage);
+            return;
+        }
+
         setIsLoading(true);
         try {
             await login(normalizedEmail, password);
+            clearAuthAttemptWindow('login-password');
             navigate('/');
         } catch (err) {
             setError(getAuthErrorMessage(err));
@@ -82,12 +91,18 @@ export default function LoginPage() {
     const handleGoogleLogin = async () => {
         setError('');
         setNotice('');
+        const rateLimitMessage = reserveAuthAttempt('login-google');
+        if (rateLimitMessage) {
+            setError(rateLimitMessage);
+            return;
+        }
         setIsLoading(true);
         try {
             const result = await loginWithGoogle();
             if (result?.redirecting) {
                 return;
             }
+            clearAuthAttemptWindow('login-google');
             navigate('/');
         } catch (err) {
             setError(getAuthErrorMessage(err));

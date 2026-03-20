@@ -7,6 +7,10 @@ export default function AudioEngine() {
 
     useEffect(() => {
         ambientSounds.forEach(sound => {
+            if (!sound.url) {
+                return;
+            }
+
             // Create audio object if not exists
             if (!audioRefs.current[sound.id]) {
                 const audio = new Audio(sound.url);

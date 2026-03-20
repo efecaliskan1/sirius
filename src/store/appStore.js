@@ -29,9 +29,9 @@ const useAppStore = create((set, get) => ({
 
     // --- AMBIENT SOUNDS ---
     ambientSounds: [
-        { id: 'rain', name: 'Rain', icon: '🌧️', volume: 0, isPlaying: false, url: 'https://cdn.pixabay.com/audio/2022/03/15/audio_24a480a797.mp3' },
-        { id: 'cafe', name: 'Cafe', icon: '☕', volume: 0, isPlaying: false, url: 'https://cdn.pixabay.com/audio/2021/08/04/audio_145ba8879b.mp3' },
-        { id: 'forest', name: 'Forest', icon: '🌲', volume: 0, isPlaying: false, url: 'https://cdn.pixabay.com/audio/2021/08/09/audio_82c3c95116.mp3' }
+        { id: 'rain', name: 'Rain', icon: '🌧️', volume: 0, isPlaying: false, url: '' },
+        { id: 'cafe', name: 'Cafe', icon: '☕', volume: 0, isPlaying: false, url: '' },
+        { id: 'forest', name: 'Forest', icon: '🌲', volume: 0, isPlaying: false, url: '' }
     ],
     updateAmbientSound: (id, updates) => set((state) => ({
         ambientSounds: state.ambientSounds.map(s => s.id === id ? { ...s, ...updates } : s)

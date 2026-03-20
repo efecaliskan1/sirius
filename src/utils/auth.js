@@ -1,4 +1,60 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+const RATE_LIMIT_STORAGE_PREFIX = 'sirius_auth_rate_limit_';
+
+function getRateLimitStorageKey(action) {
+    return `${RATE_LIMIT_STORAGE_PREFIX}${action}`;
+}
+
+function loadRateLimitState(action) {
+    if (typeof window === 'undefined') return { attempts: [], blockedUntil: 0 };
+
+    try {
+        return JSON.parse(localStorage.getItem(getRateLimitStorageKey(action)) || '{"attempts":[],"blockedUntil":0}');
+    } catch {
+        return { attempts: [], blockedUntil: 0 };
+    }
+}
+
+function saveRateLimitState(action, state) {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(getRateLimitStorageKey(action), JSON.stringify(state));
+}
+
+export function reserveAuthAttempt(action, config = {}) {
+    const {
+        maxAttempts = 5,
+        windowMs = 10 * 60 * 1000,
+        cooldownMs = 2 * 60 * 1000,
+    } = config;
+
+    const now = Date.now();
+    const state = loadRateLimitState(action);
+
+    if (state.blockedUntil && state.blockedUntil > now) {
+        return `Too many attempts from this browser. Please wait ${Math.ceil((state.blockedUntil - now) / 1000)} seconds and try again.`;
+    }
+
+    const attempts = (state.attempts || []).filter((timestamp) => now - timestamp < windowMs);
+    attempts.push(now);
+
+    const nextState = {
+        attempts,
+        blockedUntil: attempts.length >= maxAttempts ? now + cooldownMs : 0,
+    };
+
+    saveRateLimitState(action, nextState);
+
+    if (nextState.blockedUntil > now) {
+        return `Too many attempts from this browser. Please wait ${Math.ceil(cooldownMs / 1000)} seconds and try again.`;
+    }
+
+    return '';
+}
+
+export function clearAuthAttemptWindow(action) {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(getRateLimitStorageKey(action));
+}
 
 export function normalizeEmail(email) {
     return email.trim().toLowerCase();

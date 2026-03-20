@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /tasks
+Disallow: /schedule
+Disallow: /pomodoro
+Disallow: /stats
+Disallow: /rewards
+Disallow: /leaderboard
+Disallow: /course/
+
+Sitemap: https://sirius-amber.vercel.app/sitemap.xml
