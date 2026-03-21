@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { auth, db } from '../firebase/config';
+import { auth, db, ensureAppCheckToken } from '../firebase/config';
 import { 
     browserSessionPersistence,
     createUserWithEmailAndPassword, 
@@ -134,6 +134,10 @@ function clearPresenceTracking() {
     }
 }
 
+async function ensureFirestoreReady() {
+    await ensureAppCheckToken();
+}
+
 const useAuthStore = create((set, get) => ({
     user: loadAuthFromStorage(),
     isAuthenticated: !!loadAuthFromStorage(),
@@ -142,6 +146,7 @@ const useAuthStore = create((set, get) => ({
     syncPublicProfile: async (userData, extra = {}) => {
         if (!userData?.id) return;
 
+        await ensureFirestoreReady();
         await setDoc(
             doc(db, 'publicProfiles', userData.id),
             {
@@ -157,6 +162,7 @@ const useAuthStore = create((set, get) => ({
         const currentUser = get().user;
         if (!currentUser?.id) return;
 
+        await ensureFirestoreReady();
         await get().syncPublicProfile(currentUser, {
             lastSeenAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -203,6 +209,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     ensureUserDocument: async (firebaseUser) => {
+        await ensureFirestoreReady();
         const userRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userRef);
 
@@ -311,6 +318,8 @@ const useAuthStore = create((set, get) => ({
             name: cleanName,
             email: cleanEmail,
         };
+
+        await ensureFirestoreReady();
         
         await Promise.all([
             updateProfile(result.user, { displayName: cleanName }),
@@ -341,6 +350,7 @@ const useAuthStore = create((set, get) => ({
         saveAuthToLocal(updatedUser);
 
         if (auth.currentUser) {
+            await ensureFirestoreReady();
             await updateDoc(doc(db, 'users', currentUser.id), updates);
             await get().syncPublicProfile(updatedUser);
         }

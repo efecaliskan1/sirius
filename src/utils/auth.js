@@ -155,6 +155,11 @@ export function getAuthErrorMessage(error) {
             return 'Google sign-in was cancelled before it finished.';
         case 'auth/network-request-failed':
             return 'Network error. Check your connection and try again.';
+        case 'app-check/token-unavailable':
+            return 'Security verification did not finish. Refresh the page and try Google sign-in again in a few seconds.';
+        case 'permission-denied':
+        case 'failed-precondition':
+            return 'Access was blocked by a security check. Refresh the page and try again.';
         default:
             return 'Something went wrong. Please try again.';
     }

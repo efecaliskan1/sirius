@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { getToken, initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
@@ -28,6 +28,22 @@ if (typeof window !== 'undefined' && appCheckSiteKey) {
         });
     } catch (error) {
         console.error('Firebase App Check initialization failed', error);
+    }
+}
+
+export async function ensureAppCheckToken(forceRefresh = false) {
+    if (!appCheck || typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        return await getToken(appCheck, forceRefresh);
+    } catch (error) {
+        console.error('Failed to fetch App Check token', error);
+        const tokenError = new Error('app-check/token-unavailable');
+        tokenError.code = 'app-check/token-unavailable';
+        tokenError.cause = error;
+        throw tokenError;
     }
 }
 
