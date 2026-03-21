@@ -1,9 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
-import { COMPANION_STAGES } from '../utils/constants';
-import { formatDateTimeInTurkey } from '../utils/helpers';
 import {
     clearAuthAttemptWindow,
     getAuthErrorMessage,
@@ -11,23 +9,6 @@ import {
     reserveAuthAttempt,
     validateLoginForm,
 } from '../utils/auth';
-
-function getReturningUserInfo() {
-    try {
-        // First check active session
-        const data = localStorage.getItem('studywithme_auth');
-        if (data) return JSON.parse(data);
-        // Fallback: check if any users exist (returning after logout)
-        const users = JSON.parse(localStorage.getItem('studywithme_users') || '[]');
-        if (users.length > 0) {
-            // Return the most recently active user
-            const sorted = [...users].sort((a, b) => (b.lastActiveDate || '').localeCompare(a.lastActiveDate || ''));
-            const { password: _, ...safeUser } = sorted[0];
-            return safeUser;
-        }
-    } catch { }
-    return null;
-}
 
 export default function LoginPage() {
     const login = useAuthStore((s) => s.login);
@@ -39,25 +20,6 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState(() => location.state?.notice || '');
     const [isLoading, setIsLoading] = useState(false);
-
-    const returningUser = useMemo(() => getReturningUserInfo(), []);
-    // Determine companion stage based on returning user's XP
-    const companionStage = useMemo(() => {
-        if (!returningUser) return COMPANION_STAGES[0];
-        const xp = returningUser.xp || 0;
-        // Simplified level calc
-        const thresholds = [0, 100, 250, 500, 800, 1200, 1700, 2300, 3000, 4000, 5000, 6500, 8000, 10000, 12500, 15000, 18000, 22000, 27000, 33000];
-        let level = 0;
-        for (let i = 0; i < thresholds.length; i++) {
-            if (xp >= thresholds[i]) level = i;
-            else break;
-        }
-        let stage = COMPANION_STAGES[0];
-        for (const s of COMPANION_STAGES) {
-            if (level >= s.minLevel) stage = s;
-        }
-        return stage;
-    }, [returningUser]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -110,11 +72,6 @@ export default function LoginPage() {
         }
     };
 
-    const streak = returningUser?.streakCount || 0;
-    const userName = returningUser?.name || '';
-    const hour = Number(formatDateTimeInTurkey(new Date(), { hour: '2-digit', hour12: false }));
-    const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-
     return (
         <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #F5F7FB 0%, #E6F4EA 50%, #F0F4FF 100%)' }}>
             {/* Background elements */}
@@ -155,40 +112,13 @@ export default function LoginPage() {
                         </div>
                     </motion.div>
 
-                    {returningUser ? (
-                        <div>
-                            <h1 className="text-2xl font-bold text-[#111827] leading-tight">
-                                {timeGreeting}{userName ? ',' : ''}<br />
-                                {userName && <span className="text-blue-500">{userName}</span>}
-                            </h1>
-                            <p className="text-sm text-slate-400 mt-1.5">Welcome back to your study space</p>
-                        </div>
-                    ) : (
-                        <div>
-                            <h1 className="text-2xl font-bold text-[#111827] leading-tight">
-                                Welcome back
-                            </h1>
-                            <p className="text-sm text-slate-400 mt-1.5">Sign in to continue studying</p>
-                        </div>
-                    )}
+                    <div>
+                        <h1 className="text-2xl font-bold text-[#111827] leading-tight">
+                            Welcome back
+                        </h1>
+                        <p className="text-sm text-slate-400 mt-1.5">Sign in to continue studying</p>
+                    </div>
                 </div>
-
-                {/* Streak indicator (returning user) */}
-                {streak > 0 && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="mb-5 px-4 py-3 rounded-2xl border border-orange-100 flex items-center gap-3"
-                        style={{ background: 'linear-gradient(135deg, #FFF7ED, #FFFBEB)' }}
-                    >
-                        <div className="text-xl animate-streak-glow rounded-xl p-1.5">🔥</div>
-                        <div>
-                            <div className="text-sm font-semibold text-orange-700">{streak} Day Study Streak</div>
-                            <div className="text-[11px] text-orange-500/70">Keep your focus going.</div>
-                        </div>
-                    </motion.div>
-                )}
 
                 {/* Login Card */}
                 <motion.div
@@ -253,7 +183,7 @@ export default function LoginPage() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="you@gmail.com"
                                 required
-                                autoFocus={!returningUser}
+                                autoFocus
                             />
                         </div>
                         <div>
@@ -268,7 +198,6 @@ export default function LoginPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="••••••••"
                                 required
-                                autoFocus={!!returningUser}
                             />
                         </div>
                         <button

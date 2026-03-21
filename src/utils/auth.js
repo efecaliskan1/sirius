@@ -1,5 +1,6 @@
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 const RATE_LIMIT_STORAGE_PREFIX = 'sirius_auth_rate_limit_';
+const LEGACY_AUTH_STORAGE_KEYS = ['studywithme_auth', 'studywithme_users'];
 
 function getRateLimitStorageKey(action) {
     return `${RATE_LIMIT_STORAGE_PREFIX}${action}`;
@@ -54,6 +55,14 @@ export function reserveAuthAttempt(action, config = {}) {
 export function clearAuthAttemptWindow(action) {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(getRateLimitStorageKey(action));
+}
+
+export function clearLegacyAuthStorage() {
+    if (typeof window === 'undefined') return;
+
+    for (const key of LEGACY_AUTH_STORAGE_KEYS) {
+        localStorage.removeItem(key);
+    }
 }
 
 export function normalizeEmail(email) {

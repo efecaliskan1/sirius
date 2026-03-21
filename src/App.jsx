@@ -12,6 +12,7 @@ import StatsPage from './pages/StatsPage';
 import RewardsPage from './pages/RewardsPage';
 import CoursePage from './pages/CoursePage';
 import LeaderboardPage from './pages/LeaderboardPage';
+import { clearLegacyAuthStorage } from './utils/auth';
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -28,6 +29,7 @@ export default function App() {
   const isLoading = useAuthStore((s) => s.isLoading);
 
   useEffect(() => {
+    clearLegacyAuthStorage();
     init();
   }, [init]);
 
