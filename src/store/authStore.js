@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { auth, db, ensureAppCheckToken } from '../firebase/config';
 import { 
     browserLocalPersistence,
+    browserSessionPersistence,
+    inMemoryPersistence,
     createUserWithEmailAndPassword, 
     getRedirectResult,
     sendPasswordResetEmail,
@@ -58,6 +60,8 @@ const SAFE_PROFILE_UPDATE_FIELDS = new Set([
 ]);
 let presenceIntervalId = null;
 let visibilityCleanup = null;
+let pendingAuthResetTimeout = null;
+let isExplicitLogoutInFlight = false;
 const APP_CHECK_RETRY_CODES = new Set([
     'app-check/token-unavailable',
     'permission-denied',
@@ -193,6 +197,13 @@ function clearPresenceTracking() {
     }
 }
 
+function clearPendingAuthReset() {
+    if (pendingAuthResetTimeout) {
+        clearTimeout(pendingAuthResetTimeout);
+        pendingAuthResetTimeout = null;
+    }
+}
+
 function isPlainObject(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -315,6 +326,7 @@ function reconcileUserWithRewardState(userLike, rewardState) {
     }
 
     const currentWeekKey = getWeekKey();
+    const todayKey = getDateKeyInTurkey(new Date());
     const safeRewardState = extractRewardSnapshot(rewardState);
     const safeUser = extractRewardSnapshot(userLike);
 
@@ -386,6 +398,21 @@ async function sendVerificationEmailWithFallback(user) {
 
 async function sendPasswordResetWithFallback(email) {
     await sendPasswordResetEmail(auth, email);
+}
+
+async function ensurePreferredPersistence() {
+    const persistenceCandidates = [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence];
+
+    for (const persistence of persistenceCandidates) {
+        try {
+            await setPersistence(auth, persistence);
+            return persistence;
+        } catch (error) {
+            console.warn('Failed to apply auth persistence candidate', error);
+        }
+    }
+
+    return null;
 }
 
 function sanitizeWeeklyGoalMinutes(value, fallback = 900) {
@@ -515,34 +542,6 @@ async function withFirestoreAppCheckRetry(operation) {
     }
 
     throw lastError;
-}
-
-async function ensureAuthReady() {
-    let lastError = null;
-
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-        try {
-            await ensureAppCheckToken(attempt > 0);
-            return;
-        } catch (error) {
-            if (!isAppCheckRetryableError(error)) {
-                throw error;
-            }
-
-            lastError = error;
-            await delay(700 * (attempt + 1));
-        }
-    }
-
-    throw lastError;
-}
-
-async function warmAuthSecurityCheck() {
-    try {
-        await ensureAuthReady();
-    } catch (error) {
-        console.warn('Proceeding before App Check token finished loading for auth flow', error);
-    }
 }
 
 function buildFallbackAuthenticatedUser(firebaseUser) {
@@ -738,7 +737,7 @@ const useAuthStore = create((set, get) => ({
                 });
         }
 
-        setPersistence(auth, browserLocalPersistence).catch((error) => {
+        ensurePreferredPersistence().catch((error) => {
             console.error('Failed to apply persistent auth state', error);
         });
 
@@ -754,6 +753,8 @@ const useAuthStore = create((set, get) => ({
         onAuthStateChanged(auth, async (firebaseUser) => {
             try {
                 if (firebaseUser) {
+                    clearPendingAuthReset();
+                    isExplicitLogoutInFlight = false;
                     if (isPasswordAuthUser(firebaseUser) && !firebaseUser.emailVerified) {
                         useAppStore.getState().resetInMemoryStudyData();
                         saveAuthToLocal(null);
@@ -789,18 +790,42 @@ const useAuthStore = create((set, get) => ({
                     }
                 } else {
                     clearPresenceTracking();
-                    useAppStore.getState().resetInMemoryStudyData();
-                    saveAuthToLocal(null);
-                    set({ user: null, isAuthenticated: false, isLoading: false });
+                    if (isExplicitLogoutInFlight || !cachedUser?.id) {
+                        clearPendingAuthReset();
+                        useAppStore.getState().resetInMemoryStudyData();
+                        saveAuthToLocal(null);
+                        set({ user: null, isAuthenticated: false, isLoading: false });
+                        return;
+                    }
+
+                    if (!pendingAuthResetTimeout) {
+                        pendingAuthResetTimeout = setTimeout(() => {
+                            pendingAuthResetTimeout = null;
+                            if (auth.currentUser) {
+                                return;
+                            }
+
+                            useAppStore.getState().resetInMemoryStudyData();
+                            saveAuthToLocal(null);
+                            set({ user: null, isAuthenticated: false, isLoading: false });
+                        }, 2500);
+                    }
+
+                    set((state) => ({
+                        ...state,
+                        isLoading: false,
+                    }));
                 }
             } catch (error) {
                 console.error('Failed to initialize auth state', error);
+                clearPendingAuthReset();
                 useAppStore.getState().resetInMemoryStudyData();
                 saveAuthToLocal(null);
                 set({ user: null, isAuthenticated: false, isLoading: false });
             }
         }, (error) => {
             console.error('Auth state listener failed', error);
+            clearPendingAuthReset();
             useAppStore.getState().resetInMemoryStudyData();
             saveAuthToLocal(null);
             set({ user: null, isAuthenticated: false, isLoading: false });
@@ -808,7 +833,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     login: async (email, password) => {
-        await setPersistence(auth, browserLocalPersistence);
+        await ensurePreferredPersistence();
         const result = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
 
         if (isPasswordAuthUser(result.user) && !result.user.emailVerified) {
@@ -830,7 +855,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     loginWithGoogle: async () => {
-        await setPersistence(auth, browserLocalPersistence);
+        await ensurePreferredPersistence();
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
 
@@ -869,7 +894,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     signup: async (name, email, password) => {
-        await setPersistence(auth, browserLocalPersistence);
+        await ensurePreferredPersistence();
         const cleanName = normalizeName(name);
         const cleanEmail = normalizeEmail(email);
         const result = await createUserWithEmailAndPassword(auth, cleanEmail, password);
@@ -915,6 +940,8 @@ const useAuthStore = create((set, get) => ({
     },
 
     logout: async () => {
+        isExplicitLogoutInFlight = true;
+        clearPendingAuthReset();
         await useAppStore.getState().flushCloudStudySync();
         await get().stopPresenceTracking();
         await signOut(auth);
