@@ -808,6 +808,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     login: async (email, password) => {
+        await setPersistence(auth, browserLocalPersistence);
         const result = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
 
         if (isPasswordAuthUser(result.user) && !result.user.emailVerified) {
@@ -829,6 +830,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     loginWithGoogle: async () => {
+        await setPersistence(auth, browserLocalPersistence);
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
 
@@ -867,6 +869,7 @@ const useAuthStore = create((set, get) => ({
     },
 
     signup: async (name, email, password) => {
+        await setPersistence(auth, browserLocalPersistence);
         const cleanName = normalizeName(name);
         const cleanEmail = normalizeEmail(email);
         const result = await createUserWithEmailAndPassword(auth, cleanEmail, password);
