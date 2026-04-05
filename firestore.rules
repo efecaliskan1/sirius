@@ -1,0 +1,436 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isAllowedTheme(theme) {
+      return theme == 'calm' || theme == 'dark' || theme == 'nature' || theme == 'latte' || theme == 'barbie';
+    }
+
+    function isValidDateKey(value) {
+      return value is string &&
+        value.size() == 10 &&
+        value.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isOptionalDateKey(value) {
+      return value == '' || isValidDateKey(value);
+    }
+
+    function isServerTimestamp(value) {
+      return value == request.time;
+    }
+
+    function isOptionalTimestamp(value) {
+      return value == null || value is timestamp;
+    }
+
+    function isValidDashboardWidgets(value) {
+      return value == null || (value is list && value.size() <= 8);
+    }
+
+    function isAllowedRewardDelta(minutesDelta) {
+      return (
+        minutesDelta >= 5 &&
+        minutesDelta <= 30 &&
+        request.resource.data.coinBalance == resource.data.coinBalance + 10 &&
+        request.resource.data.xp == resource.data.xp + 75
+      ) || (
+        minutesDelta >= 31 &&
+        minutesDelta <= 60 &&
+        request.resource.data.coinBalance == resource.data.coinBalance + 20 &&
+        request.resource.data.xp == resource.data.xp + 150
+      ) || (
+        minutesDelta >= 61 &&
+        minutesDelta <= 90 &&
+        request.resource.data.coinBalance == resource.data.coinBalance + 30 &&
+        request.resource.data.xp == resource.data.xp + 250
+      ) || (
+        minutesDelta >= 91 &&
+        minutesDelta <= 120 &&
+        request.resource.data.coinBalance == resource.data.coinBalance + 40 &&
+        request.resource.data.xp == resource.data.xp + 400
+      );
+    }
+
+    function isValidDailyReflections(value) {
+      return value is map && value.size() <= 366;
+    }
+
+    function isValidUserDocument(userId) {
+      return request.resource.data.keys().hasAll([
+          'id',
+          'name',
+          'email',
+          'profilePhoto',
+          'createdAt',
+          'streakCount',
+          'coinBalance',
+          'xp',
+          'totalFocusMinutes',
+          'weeklyFocusMinutes',
+          'weeklyFocusWeekKey',
+          'dailyFocusMinutes',
+          'dailySessionsCount',
+          'dailyDateKey',
+          'lastActiveDate',
+          'lastSeenAt',
+          'weeklyGoalMinutes',
+          'dashboardWidgets',
+          'theme',
+          'publicProfileEnabled',
+          'streakProtected',
+          'dailyReflections'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'name',
+          'email',
+          'profilePhoto',
+          'createdAt',
+          'streakCount',
+          'coinBalance',
+          'xp',
+          'totalFocusMinutes',
+          'weeklyFocusMinutes',
+          'weeklyFocusWeekKey',
+          'dailyFocusMinutes',
+          'dailySessionsCount',
+          'dailyDateKey',
+          'lastActiveDate',
+          'lastRewardedAt',
+          'lastSeenAt',
+          'weeklyGoalMinutes',
+          'dashboardWidgets',
+          'theme',
+          'publicProfileEnabled',
+          'streakProtected',
+          'dailyReflections'
+        ]) &&
+        request.resource.data.id == userId &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() >= 2 &&
+        request.resource.data.name.size() <= 80 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() > 0 &&
+        request.resource.data.email.size() <= 120 &&
+        request.resource.data.profilePhoto is string &&
+        request.resource.data.profilePhoto.size() <= 500 &&
+        request.resource.data.createdAt is string &&
+        request.resource.data.createdAt.size() >= 10 &&
+        request.resource.data.createdAt.size() <= 40 &&
+        request.resource.data.streakCount is int &&
+        request.resource.data.streakCount >= 0 &&
+        request.resource.data.streakCount <= 10000 &&
+        request.resource.data.coinBalance is int &&
+        request.resource.data.coinBalance >= 0 &&
+        request.resource.data.coinBalance <= 1000000 &&
+        request.resource.data.xp is int &&
+        request.resource.data.xp >= 0 &&
+        request.resource.data.xp <= 10000000 &&
+        request.resource.data.totalFocusMinutes is int &&
+        request.resource.data.totalFocusMinutes >= 0 &&
+        request.resource.data.totalFocusMinutes <= 10000000 &&
+        request.resource.data.weeklyFocusMinutes is int &&
+        request.resource.data.weeklyFocusMinutes >= 0 &&
+        request.resource.data.weeklyFocusMinutes <= 10080 &&
+        request.resource.data.dailyFocusMinutes is int &&
+        request.resource.data.dailyFocusMinutes >= 0 &&
+        request.resource.data.dailyFocusMinutes <= 1440 &&
+        request.resource.data.dailySessionsCount is int &&
+        request.resource.data.dailySessionsCount >= 0 &&
+        request.resource.data.dailySessionsCount <= 100 &&
+        isValidDateKey(request.resource.data.weeklyFocusWeekKey) &&
+        isValidDateKey(request.resource.data.dailyDateKey) &&
+        isOptionalDateKey(request.resource.data.lastActiveDate) &&
+        isOptionalTimestamp(request.resource.data.lastRewardedAt) &&
+        request.resource.data.lastSeenAt == null &&
+        request.resource.data.weeklyGoalMinutes is int &&
+        request.resource.data.weeklyGoalMinutes >= 60 &&
+        request.resource.data.weeklyGoalMinutes <= 6000 &&
+        isValidDashboardWidgets(request.resource.data.dashboardWidgets) &&
+        isAllowedTheme(request.resource.data.theme) &&
+        request.resource.data.publicProfileEnabled is bool &&
+        request.resource.data.streakProtected is bool &&
+        isValidDailyReflections(request.resource.data.dailyReflections);
+    }
+
+    function isValidUserCreate(userId) {
+      return isValidUserDocument(userId) &&
+        request.resource.data.coinBalance == 0 &&
+        request.resource.data.xp == 0 &&
+        request.resource.data.streakCount == 0 &&
+        request.resource.data.totalFocusMinutes == 0 &&
+        request.resource.data.weeklyFocusMinutes == 0 &&
+        request.resource.data.dailyFocusMinutes == 0 &&
+        request.resource.data.dailySessionsCount == 0 &&
+        request.resource.data.lastActiveDate == '' &&
+        request.resource.data.lastRewardedAt == null &&
+        request.resource.data.lastSeenAt == null &&
+        request.resource.data.publicProfileEnabled == false &&
+        request.resource.data.streakProtected == false &&
+        request.resource.data.dailyReflections.size() == 0;
+    }
+
+    function isValidProfileUpdate(userId) {
+      return isValidUserDocument(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'theme',
+          'weeklyGoalMinutes',
+          'dashboardWidgets',
+          'publicProfileEnabled',
+          'dailyReflections'
+        ]);
+    }
+
+    function isValidStreakProtectionPurchase(userId) {
+      return isValidUserDocument(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'coinBalance',
+          'streakProtected'
+        ]) &&
+        request.resource.data.coinBalance == resource.data.coinBalance - 50 &&
+        request.resource.data.streakProtected == true &&
+        resource.data.streakProtected == false;
+    }
+
+    function isValidRewardUpdate(userId) {
+      return isValidUserDocument(userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'coinBalance',
+          'xp',
+          'streakCount',
+          'lastActiveDate',
+          'lastRewardedAt',
+          'totalFocusMinutes',
+          'weeklyFocusMinutes',
+          'weeklyFocusWeekKey',
+          'dailyFocusMinutes',
+          'dailySessionsCount',
+          'dailyDateKey'
+        ]) &&
+        request.resource.data.lastRewardedAt == request.time &&
+        isValidDateKey(request.resource.data.lastActiveDate) &&
+        isValidDateKey(request.resource.data.dailyDateKey) &&
+        (
+          !resource.data.keys().hasAny(['lastRewardedAt']) ||
+          resource.data.lastRewardedAt == null ||
+          request.time >= resource.data.lastRewardedAt + duration.value(5, 'm')
+        ) &&
+        request.resource.data.totalFocusMinutes > resource.data.totalFocusMinutes &&
+        request.resource.data.totalFocusMinutes - resource.data.totalFocusMinutes >= 5 &&
+        request.resource.data.totalFocusMinutes - resource.data.totalFocusMinutes <= 120 &&
+        isAllowedRewardDelta(request.resource.data.totalFocusMinutes - resource.data.totalFocusMinutes) &&
+        (
+          (
+            request.resource.data.weeklyFocusWeekKey == resource.data.weeklyFocusWeekKey &&
+            request.resource.data.weeklyFocusMinutes ==
+              resource.data.weeklyFocusMinutes +
+              (request.resource.data.totalFocusMinutes - resource.data.totalFocusMinutes)
+          ) ||
+          (
+            request.resource.data.weeklyFocusWeekKey != resource.data.weeklyFocusWeekKey &&
+            request.resource.data.weeklyFocusMinutes ==
+              request.resource.data.totalFocusMinutes - resource.data.totalFocusMinutes
+          )
+        ) &&
+        (
+          request.resource.data.dailyDateKey == resource.data.dailyDateKey &&
+          request.resource.data.dailyFocusMinutes ==
+            resource.data.dailyFocusMinutes +
+            (request.resource.data.totalFocusMinutes - resource.data.totalFocusMinutes) &&
+          request.resource.data.dailySessionsCount == resource.data.dailySessionsCount + 1
+        ||
+          request.resource.data.dailyDateKey != resource.data.dailyDateKey &&
+          request.resource.data.dailyFocusMinutes ==
+            request.resource.data.totalFocusMinutes - resource.data.totalFocusMinutes &&
+          request.resource.data.dailySessionsCount == 1
+        ) &&
+        (
+          request.resource.data.streakCount == resource.data.streakCount ||
+          request.resource.data.streakCount == resource.data.streakCount + 1 ||
+          request.resource.data.streakCount == 1
+        );
+    }
+
+    function isValidPublicProfile(userId) {
+      return request.resource.data.keys().hasAll([
+          'userId',
+          'publicProfileEnabled',
+          'displayName',
+          'theme',
+          'photoURL',
+          'streakCount',
+          'xp',
+          'totalFocusMinutes',
+          'weeklyFocusMinutes',
+          'weeklyFocusWeekKey',
+          'lastActiveDate',
+          'updatedAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'userId',
+          'publicProfileEnabled',
+          'displayName',
+          'theme',
+          'photoURL',
+          'streakCount',
+          'xp',
+          'totalFocusMinutes',
+          'weeklyFocusMinutes',
+          'weeklyFocusWeekKey',
+          'lastActiveDate',
+          'lastSeenAt',
+          'focusingNow',
+          'currentSessionTitle',
+          'updatedAt'
+        ]) &&
+        request.resource.data.userId == userId &&
+        request.resource.data.publicProfileEnabled is bool &&
+        request.resource.data.displayName is string &&
+        request.resource.data.displayName.size() >= 1 &&
+        request.resource.data.displayName.size() <= 80 &&
+        isAllowedTheme(request.resource.data.theme) &&
+        request.resource.data.photoURL is string &&
+        request.resource.data.photoURL.size() <= 500 &&
+        request.resource.data.streakCount is int &&
+        request.resource.data.streakCount >= 0 &&
+        request.resource.data.streakCount <= 10000 &&
+        request.resource.data.xp is int &&
+        request.resource.data.xp >= 0 &&
+        request.resource.data.xp <= 10000000 &&
+        request.resource.data.totalFocusMinutes is int &&
+        request.resource.data.totalFocusMinutes >= 0 &&
+        request.resource.data.totalFocusMinutes <= 10000000 &&
+        request.resource.data.weeklyFocusMinutes is int &&
+        request.resource.data.weeklyFocusMinutes >= 0 &&
+        request.resource.data.weeklyFocusMinutes <= 10080 &&
+        isValidDateKey(request.resource.data.weeklyFocusWeekKey) &&
+        isOptionalDateKey(request.resource.data.lastActiveDate) &&
+        isServerTimestamp(request.resource.data.updatedAt) &&
+        (request.resource.data.lastSeenAt == null || isServerTimestamp(request.resource.data.lastSeenAt)) &&
+        request.resource.data.focusingNow is bool &&
+        request.resource.data.currentSessionTitle is string &&
+        request.resource.data.currentSessionTitle.size() <= 120;
+    }
+
+    function isValidStudyDataDocument(userId) {
+      return request.resource.data.keys().hasAll([
+          'userId',
+          'courses',
+          'tasks',
+          'scheduleEntries',
+          'sessions',
+          'badges',
+          'courseTopics',
+          'rewardState',
+          'updatedAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'userId',
+          'courses',
+          'tasks',
+          'scheduleEntries',
+          'sessions',
+          'badges',
+          'courseTopics',
+          'rewardState',
+          'updatedAt'
+        ]) &&
+        request.resource.data.userId == userId &&
+        request.resource.data.courses is list &&
+        request.resource.data.tasks is list &&
+        request.resource.data.scheduleEntries is list &&
+        request.resource.data.sessions is list &&
+        request.resource.data.badges is list &&
+        request.resource.data.courseTopics is list &&
+        request.resource.data.rewardState is map &&
+        request.resource.data.rewardState.keys().hasAll([
+          'coinBalance',
+          'xp',
+          'streakCount',
+          'totalFocusMinutes',
+          'weeklyFocusMinutes',
+          'weeklyFocusWeekKey',
+          'dailyFocusMinutes',
+          'dailySessionsCount',
+          'dailyDateKey',
+          'lastActiveDate',
+          'lastRewardedAt'
+        ]) &&
+        request.resource.data.rewardState.keys().hasOnly([
+          'coinBalance',
+          'xp',
+          'streakCount',
+          'totalFocusMinutes',
+          'weeklyFocusMinutes',
+          'weeklyFocusWeekKey',
+          'dailyFocusMinutes',
+          'dailySessionsCount',
+          'dailyDateKey',
+          'lastActiveDate',
+          'lastRewardedAt'
+        ]) &&
+        request.resource.data.rewardState.coinBalance is int &&
+        request.resource.data.rewardState.coinBalance >= 0 &&
+        request.resource.data.rewardState.coinBalance <= 1000000 &&
+        request.resource.data.rewardState.xp is int &&
+        request.resource.data.rewardState.xp >= 0 &&
+        request.resource.data.rewardState.xp <= 10000000 &&
+        request.resource.data.rewardState.streakCount is int &&
+        request.resource.data.rewardState.streakCount >= 0 &&
+        request.resource.data.rewardState.streakCount <= 10000 &&
+        request.resource.data.rewardState.totalFocusMinutes is int &&
+        request.resource.data.rewardState.totalFocusMinutes >= 0 &&
+        request.resource.data.rewardState.totalFocusMinutes <= 10000000 &&
+        request.resource.data.rewardState.weeklyFocusMinutes is int &&
+        request.resource.data.rewardState.weeklyFocusMinutes >= 0 &&
+        request.resource.data.rewardState.weeklyFocusMinutes <= 10080 &&
+        isValidDateKey(request.resource.data.rewardState.weeklyFocusWeekKey) &&
+        request.resource.data.rewardState.dailyFocusMinutes is int &&
+        request.resource.data.rewardState.dailyFocusMinutes >= 0 &&
+        request.resource.data.rewardState.dailyFocusMinutes <= 1440 &&
+        request.resource.data.rewardState.dailySessionsCount is int &&
+        request.resource.data.rewardState.dailySessionsCount >= 0 &&
+        request.resource.data.rewardState.dailySessionsCount <= 100 &&
+        isValidDateKey(request.resource.data.rewardState.dailyDateKey) &&
+        isOptionalDateKey(request.resource.data.rewardState.lastActiveDate) &&
+        (
+          request.resource.data.rewardState.lastRewardedAt == '' ||
+          request.resource.data.rewardState.lastRewardedAt is string
+        ) &&
+        request.resource.data.courses.size() <= 500 &&
+        request.resource.data.tasks.size() <= 2000 &&
+        request.resource.data.scheduleEntries.size() <= 2000 &&
+        request.resource.data.sessions.size() <= 5000 &&
+        request.resource.data.badges.size() <= 500 &&
+        request.resource.data.courseTopics.size() <= 5000 &&
+        isServerTimestamp(request.resource.data.updatedAt);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserCreate(userId);
+      allow update: if isOwner(userId) && (
+        isValidProfileUpdate(userId) ||
+        isValidStreakProtectionPurchase(userId) ||
+        isValidRewardUpdate(userId)
+      );
+      allow delete: if isOwner(userId);
+    }
+
+    match /publicProfiles/{userId} {
+      allow read: if resource.data.publicProfileEnabled == true || isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidPublicProfile(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    match /studyData/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidStudyDataDocument(userId);
+      allow delete: if isOwner(userId);
+    }
+  }
+}

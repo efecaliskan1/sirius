@@ -1,0 +1,63 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sky" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(128 128) rotate(90) scale(120)">
+      <stop stop-color="#2794FF"/>
+      <stop offset="0.62" stop-color="#7DC8FF"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cloudEdge" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(128 128) rotate(90) scale(128)">
+      <stop offset="0.58" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.98"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="48" y1="164" x2="215" y2="111" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.45" stop-color="#CFF3FF"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+    <linearGradient id="core" x1="83" y1="110" x2="171" y2="155" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D9F2FF"/>
+    </linearGradient>
+    <linearGradient id="pageBlue" x1="79" y1="139" x2="177" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D72F8"/>
+      <stop offset="1" stop-color="#7CCFFF"/>
+    </linearGradient>
+    <filter id="outerGlow" x="20" y="32" width="216" height="180" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="starGlow" x="104" y="48" width="44" height="72" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4"/>
+    </filter>
+  </defs>
+
+  <circle cx="128" cy="128" r="120" fill="url(#sky)"/>
+  <circle cx="128" cy="128" r="128" fill="url(#cloudEdge)"/>
+
+  <ellipse cx="128" cy="156" rx="63" ry="18" fill="#1E63E8" opacity="0.55" filter="url(#outerGlow)"/>
+
+  <path d="M41 164C58 132 95 112 162 112C195 112 218 124 225 143" stroke="url(#ring)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M35 157C48 186 89 196 146 191C184 188 213 172 221 145" stroke="#FFFFFF" stroke-opacity="0.9" stroke-width="6" stroke-linecap="round"/>
+
+  <path d="M80 123C98 118 114 120 128 130V168C114 158 98 154 80 156V123Z" fill="url(#core)"/>
+  <path d="M176 123C158 118 142 120 128 130V168C142 158 158 154 176 156V123Z" fill="url(#core)"/>
+  <path d="M74 118C94 113 112 115 128 126C144 115 162 113 182 118L176 151C159 147 143 149 128 160C113 149 97 147 80 151L74 118Z" fill="#FFFFFF" fill-opacity="0.96"/>
+  <path d="M81 119C99 116 115 118 128 126" stroke="#91D8FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M175 119C157 116 141 118 128 126" stroke="#91D8FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M128 126V168" stroke="#B9E8FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M77 153C95 149 113 150 128 160C143 150 161 149 179 153" stroke="url(#pageBlue)" stroke-width="5" stroke-linecap="round"/>
+
+  <g filter="url(#starGlow)">
+    <path d="M127 60L131 77L148 81L131 85L127 102L123 85L106 81L123 77L127 60Z" fill="#E5FBFF"/>
+  </g>
+  <path d="M127 58L130 75L147 79L130 82L127 99L124 82L107 79L124 75L127 58Z" fill="#FFFFFF"/>
+  <path d="M127 98V129" stroke="#A6F0FF" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+
+  <circle cx="95" cy="90" r="14" stroke="#F7FDFF" stroke-width="3"/>
+  <path d="M89 86C89 82 91.5 79.5 95 79.5C98.5 79.5 101 82 101 86C101 88.4 99.5 90.5 97.5 91.5V97L95 95.5L92.5 97V91.5C90.5 90.5 89 88.4 89 86Z" stroke="#F7FDFF" stroke-width="2.4" stroke-linejoin="round"/>
+
+  <circle cx="152" cy="96" r="15" stroke="#F7FDFF" stroke-width="3"/>
+  <path d="M145.5 96L150.5 101L159.5 91.5" stroke="#F7FDFF" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="173" y="107" width="24" height="18" rx="5" stroke="#F7FDFF" stroke-width="3" transform="rotate(8 173 107)"/>
+  <path d="M181.5 114L188.5 118L181.5 122V114Z" fill="#F7FDFF"/>
+</svg>
