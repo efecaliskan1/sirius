@@ -72,14 +72,21 @@ export default function HomePage() {
         return sessionDateKey === today;
     });
     const activeRuntimeSession = getActiveRuntimeSnapshot(loadPomodoroRuntime(), user?.id, today);
+    const completedTodayFocusMinutes = todaySessions.reduce(
+        (sum, session) => sum + Number(session?.actualMinutes || session?.plannedMinutes || 0),
+        0
+    );
+    const completedTodaySessionCount = todaySessions.length;
     const savedDailyFocusMinutes = rewardState?.dailyDateKey === today
         ? Number(rewardState?.dailyFocusMinutes || 0)
         : 0;
     const savedDailySessionsCount = rewardState?.dailyDateKey === today
         ? Number(rewardState?.dailySessionsCount || 0)
         : 0;
-    const todayFocusMinutes = savedDailyFocusMinutes + (activeRuntimeSession?.elapsedMinutes || 0);
-    const todaySessionCount = savedDailySessionsCount + (activeRuntimeSession?.countsAsSession ? 1 : 0);
+    const todayFocusMinutes = Math.max(savedDailyFocusMinutes, completedTodayFocusMinutes)
+        + (activeRuntimeSession?.elapsedMinutes || 0);
+    const todaySessionCount = Math.max(savedDailySessionsCount, completedTodaySessionCount)
+        + (activeRuntimeSession?.countsAsSession ? 1 : 0);
 
     // Weekly goal calc
     const weekStart = new Date();

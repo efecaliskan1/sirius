@@ -389,18 +389,36 @@ export default function PomodoroPage() {
         [safeSessions, user?.id]
     );
     const todayKey = getToday();
+    const completedTodaySessions = useMemo(
+        () => safeSessions.filter((session) => {
+            if (!session?.completed || session?.userId !== user?.id) {
+                return false;
+            }
+
+            const sessionDateKey = session.sessionDateKey || (session.createdAt ? getDateKeyInTurkey(session.createdAt) : '');
+            return sessionDateKey === todayKey;
+        }),
+        [safeSessions, todayKey, user?.id]
+    );
     const activeRuntimeSession = useMemo(
         () => getActiveRuntimeSnapshot(loadPomodoroRuntime(), user?.id, todayKey),
         [isRunning, sessionType, timeLeft, todayKey, user?.id]
     );
+    const completedTodayFocusMinutes = completedTodaySessions.reduce(
+        (sum, session) => sum + Number(session?.actualMinutes || session?.plannedMinutes || 0),
+        0
+    );
+    const completedTodaySessionCount = completedTodaySessions.length;
     const savedDailyFocusMinutes = rewardState?.dailyDateKey === todayKey
         ? Number(rewardState?.dailyFocusMinutes || 0)
         : 0;
     const savedDailySessionsCount = rewardState?.dailyDateKey === todayKey
         ? Number(rewardState?.dailySessionsCount || 0)
         : 0;
-    const todayFocusMinutes = savedDailyFocusMinutes + (activeRuntimeSession?.elapsedMinutes || 0);
-    const todaySessionCount = savedDailySessionsCount + (activeRuntimeSession?.countsAsSession ? 1 : 0);
+    const todayFocusMinutes = Math.max(savedDailyFocusMinutes, completedTodayFocusMinutes)
+        + (activeRuntimeSession?.elapsedMinutes || 0);
+    const todaySessionCount = Math.max(savedDailySessionsCount, completedTodaySessionCount)
+        + (activeRuntimeSession?.countsAsSession ? 1 : 0);
 
     const totalDuration = getDuration(sessionType);
     const runningProgress = totalDuration > 0 ? ((totalDuration - timeLeft) / totalDuration) * 100 : 0;
