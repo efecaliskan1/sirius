@@ -46,6 +46,7 @@ import { getDisplayName, getWeekKey, timestampToMillis } from '../utils/social';
 import useAppStore from './appStore';
 
 const STORAGE_KEY = 'sirius_auth_session';
+const INITIAL_CACHED_USER = loadAuthFromStorage();
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const THEME_KEYS = new Set(THEMES.map((theme) => theme.key));
 const SAFE_PROFILE_UPDATE_FIELDS = new Set([
@@ -108,7 +109,12 @@ function sanitizeUserForStorage(user) {
         totalFocusMinutes: user.totalFocusMinutes || 0,
         weeklyFocusMinutes: user.weeklyFocusMinutes || 0,
         weeklyFocusWeekKey: user.weeklyFocusWeekKey || getWeekKey(),
+        dailyFocusMinutes: user.dailyFocusMinutes || 0,
+        dailySessionsCount: user.dailySessionsCount || 0,
+        dailyDateKey: user.dailyDateKey || getDateKeyInTurkey(new Date()),
         lastActiveDate: user.lastActiveDate || '',
+        lastRewardedAt: user.lastRewardedAt || '',
+        weeklyGoalMinutes: user.weeklyGoalMinutes || 900,
         publicProfileEnabled: Boolean(user.publicProfileEnabled),
     };
 }
@@ -550,8 +556,8 @@ function buildFallbackAuthenticatedUser(firebaseUser) {
 }
 
 const useAuthStore = create((set, get) => ({
-    user: loadAuthFromStorage(),
-    isAuthenticated: !!loadAuthFromStorage(),
+    user: INITIAL_CACHED_USER,
+    isAuthenticated: !!INITIAL_CACHED_USER,
     isLoading: true,
     authError: '',
 
@@ -703,6 +709,35 @@ const useAuthStore = create((set, get) => ({
 
     // Initialize listener
     init: () => {
+        const cachedUser = loadAuthFromStorage();
+
+        if (cachedUser?.id) {
+            useAppStore.getState().hydratePersistedStudyData(cachedUser.id)
+                .then(() => {
+                    const reconciledCachedUser = reconcileUserWithRewardState(
+                        cachedUser,
+                        useAppStore.getState().rewardState
+                    );
+                    useAppStore.getState().saveRewardStateSnapshot(extractRewardSnapshot(reconciledCachedUser));
+                    saveAuthToLocal(reconciledCachedUser);
+                    set({
+                        user: reconciledCachedUser,
+                        isAuthenticated: true,
+                        isLoading: false,
+                        authError: '',
+                    });
+                })
+                .catch((error) => {
+                    console.error('Failed to hydrate cached study data on init', error);
+                    set({
+                        user: cachedUser,
+                        isAuthenticated: true,
+                        isLoading: false,
+                        authError: '',
+                    });
+                });
+        }
+
         setPersistence(auth, browserLocalPersistence).catch((error) => {
             console.error('Failed to apply persistent auth state', error);
         });
