@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
-import { primeAppCheckToken } from '../firebase/config';
 import { INPUT_LIMITS } from '../utils/constants';
 import {
     clearAuthAttemptWindow,
@@ -70,12 +69,6 @@ export default function SignupPage() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        primeAppCheckToken().catch(() => {
-            // The submit flow already handles App Check errors with a user message.
-        });
-    }, []);
 
     useEffect(() => {
         if (authError) {

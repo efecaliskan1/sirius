@@ -23,7 +23,11 @@ const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
 let appCheck = null;
 let appCheckWarmupPromise = null;
 
-if (typeof window !== 'undefined' && appCheckSiteKey) {
+function initializeAppCheckIfNeeded() {
+    if (appCheck || typeof window === 'undefined' || !appCheckSiteKey) {
+        return appCheck;
+    }
+
     try {
         appCheck = initializeAppCheck(app, {
             provider: new ReCaptchaV3Provider(appCheckSiteKey),
@@ -32,6 +36,8 @@ if (typeof window !== 'undefined' && appCheckSiteKey) {
     } catch (error) {
         console.error('Firebase App Check initialization failed', error);
     }
+
+    return appCheck;
 }
 
 function delay(ms) {
@@ -49,7 +55,13 @@ async function fetchAppCheckToken(forceRefresh = false) {
 }
 
 export function primeAppCheckToken() {
-    if (!appCheck || typeof window === 'undefined') {
+    if (typeof window === 'undefined') {
+        return Promise.resolve(null);
+    }
+
+    initializeAppCheckIfNeeded();
+
+    if (!appCheck) {
         return Promise.resolve(null);
     }
 
@@ -67,7 +79,13 @@ export function primeAppCheckToken() {
 }
 
 export async function ensureAppCheckToken(forceRefresh = false) {
-    if (!appCheck || typeof window === 'undefined') {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    initializeAppCheckIfNeeded();
+
+    if (!appCheck) {
         return null;
     }
 
@@ -86,14 +104,6 @@ export async function ensureAppCheckToken(forceRefresh = false) {
             throw tokenError;
         }
     }
-}
-
-if (typeof window !== 'undefined' && appCheck) {
-    window.setTimeout(() => {
-        primeAppCheckToken().catch((error) => {
-            console.error('Initial App Check warmup failed', error);
-        });
-    }, 0);
 }
 
 export async function ensureFreshAppCheckToken() {

@@ -799,35 +799,10 @@ const useAuthStore = create((set, get) => ({
 
         try {
             const result = await signInWithPopup(auth, provider);
-            let finalUser;
-
-            try {
-                finalUser = await get().ensureUserDocument(result.user);
-                const appStore = useAppStore.getState();
-                await appStore.hydratePersistedStudyData(finalUser.id);
-                const reconciledUser = reconcileUserWithRewardState(finalUser, useAppStore.getState().rewardState);
-                useAppStore.getState().saveRewardStateSnapshot(extractRewardSnapshot(reconciledUser));
-                await syncRecoveredRewardStateIfNeeded(finalUser, reconciledUser);
-                saveAuthToLocal(reconciledUser);
-                set({ user: reconciledUser, isAuthenticated: true, authError: '' });
-                await get().syncPublicProfile(reconciledUser);
-                finalUser = reconciledUser;
-            } catch (bootstrapError) {
-                console.error('Google sign-in bootstrap partially failed', bootstrapError);
-                finalUser = buildFallbackAuthenticatedUser(result.user);
-                try {
-                    await useAppStore.getState().hydratePersistedStudyData(finalUser.id);
-                } catch (hydrateError) {
-                    console.error('Google fallback study data hydration failed', hydrateError);
-                }
-                finalUser = reconcileUserWithRewardState(finalUser, useAppStore.getState().rewardState);
-                useAppStore.getState().saveRewardStateSnapshot(extractRewardSnapshot(finalUser));
-                saveAuthToLocal(finalUser);
-                set({ user: finalUser, isAuthenticated: true, authError: '' });
-            }
-
-            get().startPresenceTracking();
-            return { user: finalUser, redirecting: false };
+            const fallbackUser = buildFallbackAuthenticatedUser(result.user);
+            saveAuthToLocal(fallbackUser);
+            set({ user: fallbackUser, isAuthenticated: true, authError: '' });
+            return { user: fallbackUser, redirecting: false };
         } catch (error) {
             const shouldFallbackToRedirect = new Set([
                 'auth/popup-blocked',

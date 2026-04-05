@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../store/authStore';
-import { primeAppCheckToken } from '../firebase/config';
 import { INPUT_LIMITS } from '../utils/constants';
 import {
     clearAuthAttemptWindow,
@@ -62,12 +61,6 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState(() => location.state?.notice || '');
     const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        primeAppCheckToken().catch(() => {
-            // The submit flow already handles App Check errors with a user message.
-        });
-    }, []);
 
     useEffect(() => {
         if (authError) {
