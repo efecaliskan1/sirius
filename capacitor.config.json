@@ -4,5 +4,22 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https"
+  },
+  "ios": {
+    "limitsNavigationsToAppBoundDomains": false,
+    "scrollEnabled": true,
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#070b16",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
   }
 }
