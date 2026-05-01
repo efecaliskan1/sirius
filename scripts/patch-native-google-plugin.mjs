@@ -29,7 +29,7 @@ patchFile(swiftImplPath, (source) => {
     `let serverClientId = options.clientId.trimmingCharacters(in: .whitespacesAndNewlines)
         let configuration: GIDConfiguration
 
-        if serverClientId.isEmpty || serverClientId == iosClientId {
+        if serverClientId.isEmpty {
             configuration = GIDConfiguration(clientID: iosClientId)
         } else {
             configuration = GIDConfiguration(clientID: iosClientId, serverClientID: serverClientId)
