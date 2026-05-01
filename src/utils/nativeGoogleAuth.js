@@ -24,14 +24,15 @@ export function isNativeGoogleConfigured() {
         return true;
     }
 
+    // serverClientID (web client ID) her platformda gerekli - Firebase idToken dogrulamasi icin
+    if (!NATIVE_GOOGLE_WEB_CLIENT_ID) {
+        return false;
+    }
+
     const platform = getNativePlatform();
 
     if (platform === 'ios') {
         return Boolean(NATIVE_GOOGLE_IOS_CLIENT_ID);
-    }
-
-    if (!NATIVE_GOOGLE_WEB_CLIENT_ID) {
-        return false;
     }
 
     return true;
