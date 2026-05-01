@@ -465,12 +465,17 @@ async function ensureNativeGoogleInitialized() {
     }
 
     if (!nativeGoogleInitializationPromise) {
-        const nativeClientId = Capacitor.getPlatform() === 'ios'
-            ? (NATIVE_GOOGLE_IOS_CLIENT_ID || NATIVE_GOOGLE_WEB_CLIENT_ID)
-            : NATIVE_GOOGLE_WEB_CLIENT_ID;
+        // clientId parametresi plugin tarafinda serverClientID olarak kullaniliyor.
+        // iOS'ta native client ID zaten Info.plist > GIDClientID'den okunuyor.
+        // Firebase idToken dogrulamasi icin serverClientID her zaman WEB client ID olmali.
+        const serverClientId = NATIVE_GOOGLE_WEB_CLIENT_ID;
+
+        if (!serverClientId) {
+            throw createAuthError('auth/native-google-missing-config');
+        }
 
         nativeGoogleInitializationPromise = GoogleSignIn.initialize({
-            clientId: nativeClientId,
+            clientId: serverClientId,
         }).catch((error) => {
             nativeGoogleInitializationPromise = null;
             throw error;
