@@ -47,6 +47,15 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>GIDClientID</key>
 	<string>884632638089-cffcc2h0c5btfj0ogrb14e1413sso1nv.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
