@@ -1,0 +1,38 @@
+import { Capacitor } from '@capacitor/core';
+
+export const NATIVE_GOOGLE_WEB_CLIENT_ID = import.meta.env.VITE_GOOGLE_WEB_CLIENT_ID || '';
+export const NATIVE_GOOGLE_IOS_CLIENT_ID = import.meta.env.VITE_GOOGLE_IOS_CLIENT_ID || '';
+
+export function getNativePlatform() {
+    return Capacitor.getPlatform();
+}
+
+export function isNativePlatform() {
+    return Capacitor.isNativePlatform();
+}
+
+export function getReversedGoogleClientId(clientId) {
+    if (typeof clientId !== 'string' || !clientId.endsWith('.apps.googleusercontent.com')) {
+        return '';
+    }
+
+    return `com.googleusercontent.apps.${clientId.replace('.apps.googleusercontent.com', '')}`;
+}
+
+export function isNativeGoogleConfigured() {
+    if (!isNativePlatform()) {
+        return true;
+    }
+
+    const platform = getNativePlatform();
+
+    if (platform === 'ios') {
+        return Boolean(NATIVE_GOOGLE_IOS_CLIENT_ID);
+    }
+
+    if (!NATIVE_GOOGLE_WEB_CLIENT_ID) {
+        return false;
+    }
+
+    return true;
+}

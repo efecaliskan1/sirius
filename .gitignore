@@ -15,6 +15,15 @@ dist-ssr
 .env.*
 !.env.example
 
+# Local mobile build/cache output
+.gradle-user/
+android/app/build/
+android/.gradle/
+ios/App/build/
+.derivedData/
+tmp/
+ios_broken_backup_20260501/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

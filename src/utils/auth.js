@@ -195,6 +195,8 @@ export function createAuthError(code) {
 }
 
 export function getAuthErrorMessage(error) {
+    const rawMessage = typeof error?.message === 'string' ? error.message.trim() : '';
+
     switch (error?.code) {
         case 'auth/email-not-verified':
             return 'Verify your email before signing in. Check your inbox for the confirmation link.';
@@ -204,6 +206,14 @@ export function getAuthErrorMessage(error) {
             return 'Google sign-in is blocked for this domain. Add your live site domain to Firebase Authorized domains.';
         case 'auth/operation-not-allowed':
             return 'Google sign-in is not enabled in Firebase Authentication.';
+        case 'auth/native-google-not-supported':
+            return 'Google ile giris mobil uygulamada hazir degil. Simdilik e-posta ve sifre ile devam et.';
+        case 'auth/native-google-missing-config':
+            return 'Mobil Google girisi icin gerekli client ID ayarlari eksik. Web client ID ve iOS client ID tanimlanmali.';
+        case 'auth/native-google-token-missing':
+            return 'Google girisi tamamlandi ama kimlik jetonu donmedi. Tekrar dene.';
+        case 'auth/native-google-timeout':
+            return 'Google girisi beklenenden uzun surdu. Uygulamayi yeniden acip tekrar dene.';
         case 'auth/web-storage-unsupported':
             return 'This browser blocks required sign-in storage. Disable strict privacy blocking or try another browser.';
         case 'auth/invalid-email':
@@ -228,6 +238,14 @@ export function getAuthErrorMessage(error) {
         case 'failed-precondition':
             return 'Security verification is still loading. Wait a few seconds and try again.';
         default:
+            if (
+                rawMessage &&
+                rawMessage !== error?.code &&
+                !rawMessage.startsWith('auth/') &&
+                rawMessage.length <= 220
+            ) {
+                return rawMessage;
+            }
             return 'Something went wrong. Please try again.';
     }
 }

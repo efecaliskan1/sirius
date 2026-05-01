@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db, ensureAppCheckToken } from '../firebase/config';
+import { auth, db, ensureAppCheckToken } from '../firebase/config';
 import {
     AMBIENT_SOUNDS,
     BLOCK_TYPES,
@@ -96,10 +96,17 @@ function sanitizeIdentifier(value, maxLength = 120) {
         return '';
     }
 
-    return value
-        .replace(/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g, '')
-        .trim()
-        .slice(0, maxLength);
+    const sanitizedValue = Array.from(value)
+        .filter((char) => {
+            const codePoint = char.codePointAt(0) || 0;
+            const isAsciiControl = codePoint <= 0x1f || codePoint === 0x7f;
+            const isBidiControl = (codePoint >= 0x202a && codePoint <= 0x202e)
+                || (codePoint >= 0x2066 && codePoint <= 0x2069);
+            return !isAsciiControl && !isBidiControl;
+        })
+        .join('');
+
+    return sanitizedValue.trim().slice(0, maxLength);
 }
 
 function clampInteger(value, min, max, fallback = null) {
@@ -500,8 +507,9 @@ function belongsToUser(record, userId) {
 function resolveMutationOwnerId(preferredUserId, fallbackUserId) {
     const safePreferredUserId = sanitizeIdentifier(preferredUserId, 80);
     const safeFallbackUserId = sanitizeIdentifier(fallbackUserId, 80);
+    const safeAuthUserId = sanitizeIdentifier(auth.currentUser?.uid, 80);
 
-    return safePreferredUserId || safeFallbackUserId || '';
+    return safePreferredUserId || safeFallbackUserId || safeAuthUserId || '';
 }
 
 function extractStudyState(state) {
@@ -817,7 +825,7 @@ const useAppStore = create((set, get) => ({
 
     flushCloudStudySync: async () => {
         const currentState = get();
-        const userId = currentState.activeUserId;
+        const userId = resolveMutationOwnerId('', currentState.activeUserId);
 
         if (!userId || isApplyingRemoteStudySnapshot) {
             return false;
@@ -838,7 +846,7 @@ const useAppStore = create((set, get) => ({
 
     requestCriticalCloudStudySync: () => {
         const currentState = get();
-        const userId = currentState.activeUserId;
+        const userId = resolveMutationOwnerId('', currentState.activeUserId);
 
         if (!userId || isApplyingRemoteStudySnapshot) {
             return;
@@ -856,7 +864,7 @@ const useAppStore = create((set, get) => ({
 
     scheduleCloudStudySync: () => {
         const currentState = get();
-        const userId = currentState.activeUserId;
+        const userId = resolveMutationOwnerId('', currentState.activeUserId);
 
         if (!userId || isApplyingRemoteStudySnapshot) {
             return;
@@ -868,7 +876,7 @@ const useAppStore = create((set, get) => ({
 
         studyDataSyncTimer = window.setTimeout(async () => {
             const latestState = get();
-            const latestUserId = latestState.activeUserId;
+            const latestUserId = resolveMutationOwnerId('', latestState.activeUserId);
 
             if (!latestUserId || latestUserId !== userId || isApplyingRemoteStudySnapshot) {
                 return;
@@ -1002,7 +1010,10 @@ const useAppStore = create((set, get) => ({
             const courses = [...state.courses, newCourse];
             const scopedUserId = resolveMutationOwnerId(newCourse.userId, state.activeUserId);
             const sanitizedCourses = saveScopedData(STUDY_DATA_STORAGE_KEYS.courses, scopedUserId, courses);
-            return { courses: sanitizedCourses };
+            return {
+                activeUserId: state.activeUserId || scopedUserId,
+                courses: sanitizedCourses,
+            };
         });
         get().scheduleCloudStudySync();
         get().requestCriticalCloudStudySync();
@@ -1046,7 +1057,10 @@ const useAppStore = create((set, get) => ({
             const courseTopics = [...state.courseTopics, newTopic];
             const scopedUserId = resolveMutationOwnerId(newTopic.userId, state.activeUserId);
             const sanitizedCourseTopics = saveScopedData(STUDY_DATA_STORAGE_KEYS.courseTopics, scopedUserId, courseTopics);
-            return { courseTopics: sanitizedCourseTopics };
+            return {
+                activeUserId: state.activeUserId || scopedUserId,
+                courseTopics: sanitizedCourseTopics,
+            };
         });
         get().scheduleCloudStudySync();
         get().requestCriticalCloudStudySync();
@@ -1128,7 +1142,10 @@ const useAppStore = create((set, get) => ({
             const tasks = [...state.tasks, newTask];
             const scopedUserId = resolveMutationOwnerId(newTask.userId, state.activeUserId);
             const sanitizedTasks = saveScopedData(STUDY_DATA_STORAGE_KEYS.tasks, scopedUserId, tasks);
-            return { tasks: sanitizedTasks };
+            return {
+                activeUserId: state.activeUserId || scopedUserId,
+                tasks: sanitizedTasks,
+            };
         });
         get().scheduleCloudStudySync();
         get().requestCriticalCloudStudySync();
@@ -1228,7 +1245,10 @@ const useAppStore = create((set, get) => ({
             const scheduleEntries = [...state.scheduleEntries, newEntry];
             const scopedUserId = resolveMutationOwnerId(newEntry.userId, state.activeUserId);
             const sanitizedScheduleEntries = saveScopedData(STUDY_DATA_STORAGE_KEYS.scheduleEntries, scopedUserId, scheduleEntries);
-            return { scheduleEntries: sanitizedScheduleEntries };
+            return {
+                activeUserId: state.activeUserId || scopedUserId,
+                scheduleEntries: sanitizedScheduleEntries,
+            };
         });
         get().scheduleCloudStudySync();
         get().requestCriticalCloudStudySync();
@@ -1272,7 +1292,10 @@ const useAppStore = create((set, get) => ({
             const sessions = [...state.sessions, newSession];
             const scopedUserId = resolveMutationOwnerId(newSession.userId, state.activeUserId);
             const sanitizedSessions = saveScopedData(STUDY_DATA_STORAGE_KEYS.sessions, scopedUserId, sessions);
-            return { sessions: sanitizedSessions };
+            return {
+                activeUserId: state.activeUserId || scopedUserId,
+                sessions: sanitizedSessions,
+            };
         });
         get().scheduleCloudStudySync();
         get().requestCriticalCloudStudySync();
@@ -1305,7 +1328,10 @@ const useAppStore = create((set, get) => ({
             const badges = [...state.badges, newBadge];
             const scopedUserId = resolveMutationOwnerId(newBadge.userId, state.activeUserId);
             const sanitizedBadges = saveScopedData(STUDY_DATA_STORAGE_KEYS.badges, scopedUserId, badges);
-            return { badges: sanitizedBadges };
+            return {
+                activeUserId: state.activeUserId || scopedUserId,
+                badges: sanitizedBadges,
+            };
         });
         get().scheduleCloudStudySync();
         get().requestCriticalCloudStudySync();
@@ -1358,7 +1384,7 @@ const useAppStore = create((set, get) => ({
     },
 
     saveRewardStateSnapshot: (rewardStateInput) => {
-        const activeUserId = get().activeUserId;
+        const activeUserId = resolveMutationOwnerId('', get().activeUserId);
         if (!activeUserId) {
             return { ...EMPTY_STUDY_STATE.rewardState };
         }
@@ -1369,7 +1395,10 @@ const useAppStore = create((set, get) => ({
                 ...state.rewardState,
                 ...nextRewardState,
             });
-            return { rewardState };
+            return {
+                activeUserId: state.activeUserId || activeUserId,
+                rewardState,
+            };
         });
         get().scheduleCloudStudySync();
         get().requestCriticalCloudStudySync();

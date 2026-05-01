@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getToken, initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'sirius-a56cf';
 
@@ -19,12 +20,13 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
+const isNativePlatform = Capacitor.isNativePlatform();
 
 let appCheck = null;
 let appCheckWarmupPromise = null;
 
 function initializeAppCheckIfNeeded() {
-    if (appCheck || typeof window === 'undefined' || !appCheckSiteKey) {
+    if (appCheck || typeof window === 'undefined' || !appCheckSiteKey || isNativePlatform) {
         return appCheck;
     }
 

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { Capacitor } from '@capacitor/core';
+import { GoogleSignIn } from '@capawesome/capacitor-google-sign-in';
 import { auth, db, ensureAppCheckToken } from '../firebase/config';
 import { 
     browserLocalPersistence,
@@ -16,6 +18,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
     signInWithRedirect,
+    signInWithCredential,
 } from 'firebase/auth';
 import { 
     doc, 
@@ -45,12 +48,18 @@ import {
 import { getDateKeyInTurkey } from '../utils/helpers';
 import { calculateCoins, calculateXP } from '../utils/rewardEngine';
 import { getDisplayName, getWeekKey, timestampToMillis } from '../utils/social';
+import {
+    isNativeGoogleConfigured,
+    NATIVE_GOOGLE_IOS_CLIENT_ID,
+    NATIVE_GOOGLE_WEB_CLIENT_ID,
+} from '../utils/nativeGoogleAuth';
 import useAppStore from './appStore';
 
 const STORAGE_KEY = 'sirius_auth_session';
 const INITIAL_CACHED_USER = loadAuthFromStorage();
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const THEME_KEYS = new Set(THEMES.map((theme) => theme.key));
+const IS_NATIVE_PLATFORM = Capacitor.isNativePlatform();
 const SAFE_PROFILE_UPDATE_FIELDS = new Set([
     'theme',
     'weeklyGoalMinutes',
@@ -61,7 +70,9 @@ const SAFE_PROFILE_UPDATE_FIELDS = new Set([
 let presenceIntervalId = null;
 let visibilityCleanup = null;
 let pendingAuthResetTimeout = null;
+let authBootstrapTimeoutId = null;
 let isExplicitLogoutInFlight = false;
+let nativeGoogleInitializationPromise = null;
 const APP_CHECK_RETRY_CODES = new Set([
     'app-check/token-unavailable',
     'permission-denied',
@@ -201,6 +212,13 @@ function clearPendingAuthReset() {
     if (pendingAuthResetTimeout) {
         clearTimeout(pendingAuthResetTimeout);
         pendingAuthResetTimeout = null;
+    }
+}
+
+function clearAuthBootstrapTimeout() {
+    if (authBootstrapTimeoutId) {
+        clearTimeout(authBootstrapTimeoutId);
+        authBootstrapTimeoutId = null;
     }
 }
 
@@ -401,6 +419,10 @@ async function sendPasswordResetWithFallback(email) {
 }
 
 async function ensurePreferredPersistence() {
+    if (IS_NATIVE_PLATFORM) {
+        return null;
+    }
+
     const persistenceCandidates = [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence];
 
     for (const persistence of persistenceCandidates) {
@@ -413,6 +435,80 @@ async function ensurePreferredPersistence() {
     }
 
     return null;
+}
+
+async function withNativeGoogleTimeout(promise, timeoutMs = 180000) {
+    let timeoutId = null;
+
+    const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(createAuthError('auth/native-google-timeout'));
+        }, timeoutMs);
+    });
+
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+    }
+}
+
+async function ensureNativeGoogleInitialized() {
+    if (!IS_NATIVE_PLATFORM) {
+        return;
+    }
+
+    if (!isNativeGoogleConfigured()) {
+        throw createAuthError('auth/native-google-missing-config');
+    }
+
+    if (!nativeGoogleInitializationPromise) {
+        const nativeClientId = Capacitor.getPlatform() === 'ios'
+            ? (NATIVE_GOOGLE_IOS_CLIENT_ID || NATIVE_GOOGLE_WEB_CLIENT_ID)
+            : NATIVE_GOOGLE_WEB_CLIENT_ID;
+
+        nativeGoogleInitializationPromise = GoogleSignIn.initialize({
+            clientId: nativeClientId,
+        }).catch((error) => {
+            nativeGoogleInitializationPromise = null;
+            throw error;
+        });
+    }
+
+    await nativeGoogleInitializationPromise;
+}
+
+async function signInWithRecoveredNativeGoogle(nativeResult) {
+    if (!nativeResult?.idToken) {
+        throw createAuthError('auth/native-google-token-missing');
+    }
+
+    const credential = GoogleAuthProvider.credential(
+        nativeResult.idToken,
+        nativeResult.accessToken || null
+    );
+    const result = await withNativeGoogleTimeout(signInWithCredential(auth, credential), 45000);
+    return buildFallbackAuthenticatedUser(result.user);
+}
+
+async function recoverTimedOutNativeGoogleSignIn(timeoutError) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+            const recoveredUser = await GoogleSignIn.getCurrentUser();
+
+            if (recoveredUser?.idToken) {
+                return recoveredUser;
+            }
+        } catch {
+            // Native Google state henuz oturmamissa bir sonraki denemeye geciyoruz.
+        }
+
+        await delay(1500);
+    }
+
+    throw timeoutError;
 }
 
 function sanitizeWeeklyGoalMinutes(value, fallback = 900) {
@@ -709,6 +805,7 @@ const useAuthStore = create((set, get) => ({
     // Initialize listener
     init: () => {
         const cachedUser = loadAuthFromStorage();
+        clearAuthBootstrapTimeout();
 
         if (cachedUser?.id) {
             useAppStore.getState().hydratePersistedStudyData(cachedUser.id)
@@ -741,17 +838,38 @@ const useAuthStore = create((set, get) => ({
             console.error('Failed to apply persistent auth state', error);
         });
 
-        getRedirectResult(auth).catch((error) => {
-            console.error('Google redirect sign-in failed', error);
-            if (USER_ACTIONABLE_AUTH_CODES.has(error?.code)) {
-                set({ authError: error.code, isLoading: false });
+        authBootstrapTimeoutId = setTimeout(() => {
+            authBootstrapTimeoutId = null;
+
+            if (!get().isLoading) {
                 return;
             }
-            set({ isLoading: false });
-        });
+
+            if (auth.currentUser) {
+                return;
+            }
+
+            set((state) => ({
+                ...state,
+                isLoading: false,
+                isAuthenticated: Boolean(state.user),
+            }));
+        }, IS_NATIVE_PLATFORM ? 1200 : 4000);
+
+        if (!IS_NATIVE_PLATFORM) {
+            getRedirectResult(auth).catch((error) => {
+                console.error('Google redirect sign-in failed', error);
+                if (USER_ACTIONABLE_AUTH_CODES.has(error?.code)) {
+                    set({ authError: error.code, isLoading: false });
+                    return;
+                }
+                set({ isLoading: false });
+            });
+        }
 
         onAuthStateChanged(auth, async (firebaseUser) => {
             try {
+                clearAuthBootstrapTimeout();
                 if (firebaseUser) {
                     clearPendingAuthReset();
                     isExplicitLogoutInFlight = false;
@@ -825,6 +943,7 @@ const useAuthStore = create((set, get) => ({
             }
         }, (error) => {
             console.error('Auth state listener failed', error);
+            clearAuthBootstrapTimeout();
             clearPendingAuthReset();
             useAppStore.getState().resetInMemoryStudyData();
             saveAuthToLocal(null);
@@ -833,6 +952,8 @@ const useAuthStore = create((set, get) => ({
     },
 
     login: async (email, password) => {
+        clearPendingAuthReset();
+        isExplicitLogoutInFlight = false;
         await ensurePreferredPersistence();
         const result = await signInWithEmailAndPassword(auth, normalizeEmail(email), password);
 
@@ -841,20 +962,47 @@ const useAuthStore = create((set, get) => ({
             throw createAuthError('auth/email-not-verified');
         }
 
-        const finalUser = await get().ensureUserDocument(result.user);
-        const appStore = useAppStore.getState();
-        await appStore.hydratePersistedStudyData(finalUser.id);
-        const reconciledUser = reconcileUserWithRewardState(finalUser, useAppStore.getState().rewardState);
-        useAppStore.getState().saveRewardStateSnapshot(extractRewardSnapshot(reconciledUser));
-        await syncRecoveredRewardStateIfNeeded(finalUser, reconciledUser);
-        saveAuthToLocal(reconciledUser);
-        set({ user: reconciledUser, isAuthenticated: true, authError: '' });
-        await get().syncPublicProfile(reconciledUser);
-        get().startPresenceTracking();
-        return reconciledUser;
+        const fallbackUser = buildFallbackAuthenticatedUser(result.user);
+        saveAuthToLocal(fallbackUser);
+        set({ user: fallbackUser, isAuthenticated: true, authError: '' });
+        return fallbackUser;
     },
 
     loginWithGoogle: async () => {
+        clearPendingAuthReset();
+        isExplicitLogoutInFlight = false;
+        if (IS_NATIVE_PLATFORM) {
+            await ensurePreferredPersistence();
+            await ensureNativeGoogleInitialized();
+
+            try {
+                await GoogleSignIn.signOut();
+            } catch {
+                // Native Google tarafinda aktif oturum yoksa sessizce devam ediyoruz.
+            }
+
+            let nativeResult;
+
+            try {
+                nativeResult = await withNativeGoogleTimeout(
+                    GoogleSignIn.signIn(),
+                    45000
+                );
+            } catch (error) {
+                if (error?.code === 'auth/native-google-timeout') {
+                    nativeResult = await recoverTimedOutNativeGoogleSignIn(error);
+                } else {
+                    throw error;
+                }
+            }
+
+            const fallbackUser = await signInWithRecoveredNativeGoogle(nativeResult);
+
+            saveAuthToLocal(fallbackUser);
+            set({ user: fallbackUser, isAuthenticated: true, authError: '' });
+            return { user: fallbackUser, redirecting: false };
+        }
+
         await ensurePreferredPersistence();
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
@@ -894,6 +1042,8 @@ const useAuthStore = create((set, get) => ({
     },
 
     signup: async (name, email, password) => {
+        clearPendingAuthReset();
+        isExplicitLogoutInFlight = false;
         await ensurePreferredPersistence();
         const cleanName = normalizeName(name);
         const cleanEmail = normalizeEmail(email);
@@ -944,6 +1094,13 @@ const useAuthStore = create((set, get) => ({
         clearPendingAuthReset();
         await useAppStore.getState().flushCloudStudySync();
         await get().stopPresenceTracking();
+        if (IS_NATIVE_PLATFORM) {
+            try {
+                await GoogleSignIn.signOut();
+            } catch (error) {
+                console.warn('Native Google sign-out skipped', error);
+            }
+        }
         await signOut(auth);
         saveAuthToLocal(null);
         clearClientLogoutStorage();

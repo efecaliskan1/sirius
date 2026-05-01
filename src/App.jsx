@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import useAuthStore from './store/authStore';
 import AppLayout from './layouts/AppLayout';
 import AppErrorBoundary from './components/AppErrorBoundary';
@@ -29,13 +30,31 @@ function AuthGuard({ children }) {
 export default function App() {
   const init = useAuthStore((s) => s.init);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
+  const isNativePlatform = Capacitor.isNativePlatform();
+  const Router = isNativePlatform ? HashRouter : BrowserRouter;
+  const [nativeLoadingBypassed, setNativeLoadingBypassed] = useState(false);
+  const shouldSkipNativeBootSpinner = isNativePlatform && !user?.id;
 
   useEffect(() => {
     clearLegacyAuthStorage();
     init();
   }, [init]);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isNativePlatform || !isLoading) {
+      setNativeLoadingBypassed(false);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNativeLoadingBypassed(true);
+    }, 3200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isLoading, isNativePlatform]);
+
+  if (isLoading && !nativeLoadingBypassed && !shouldSkipNativeBootSpinner) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
@@ -48,7 +67,7 @@ export default function App() {
 
   return (
     <AppErrorBoundary>
-      <BrowserRouter>
+      <Router>
         <Routes>
           <Route path="/login" element={<AuthGuard><LoginPage /></AuthGuard>} />
           <Route path="/signup" element={<AuthGuard><SignupPage /></AuthGuard>} />
@@ -66,7 +85,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </BrowserRouter>
+      </Router>
     </AppErrorBoundary>
   );
 }
