@@ -277,228 +277,293 @@ export default function HomePage() {
     ];
 
     return (
-        <div className="w-full max-w-[1600px] space-y-8">
-            {/* Greeting + Motivation */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                        <h1
-                            className="text-[32px] tracking-tight"
-                            style={{ color: 'var(--theme-text, #111827)' }}
-                        >
-                            {getGreeting(locale)},{' '}
-                            <span className="font-extrabold">
-                                {firstName}
-                            </span>
-                        </h1>
-                        <p
-                            className="font-medium text-[15px] mt-1"
-                            style={{ color: 'var(--theme-text-muted, #94A3B8)' }}
-                        >
-                            {todayFormatted}
-                        </p>
-                    </div>
+        <div className="w-full max-w-[1400px] mx-auto pb-8 space-y-6">
+
+            {/* ============ GREETING ROW ============ */}
+            <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center justify-between"
+            >
+                <div>
+                    <p className="text-[13px] font-medium" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                        {getGreeting(locale)}
+                    </p>
+                    <h1
+                        className="display-heading text-[32px] sm:text-[40px] mt-1"
+                        style={{ color: 'var(--bb-ink)' }}
+                    >
+                        {firstName}
+                    </h1>
+                    <p
+                        className="text-[12px] font-medium mt-1"
+                        style={{ color: 'var(--bb-ink)', opacity: 0.55 }}
+                    >
+                        {todayFormatted}
+                    </p>
                 </div>
 
-                {/* Motivation Card */}
+                {/* Floating sticker companion */}
                 <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className={`mt-4 px-5 py-4 rounded-2xl motivation-card-dark ${isDark ? 'border border-indigo-500/15' : 'border'}`}
-                    style={isDark
-                        ? { background: 'rgba(99, 102, 241, 0.08)' }
-                        : {
-                            background: isBarbie
-                                ? 'linear-gradient(135deg, rgba(255, 244, 250, 1) 0%, rgba(249, 168, 212, 0.24) 100%)'
-                                : 'linear-gradient(90deg, rgba(239,246,255,1) 0%, rgba(238,242,255,1) 50%, rgba(245,243,255,1) 100%)',
-                            borderColor: isBarbie ? 'rgba(225, 29, 114, 0.12)' : 'rgba(129, 140, 248, 0.18)',
-                        }}
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: -8 }}
+                    transition={{ delay: 0.15, type: 'spring' }}
+                    className="hidden sm:flex flex-col items-center justify-center text-center"
+                    style={{
+                        width: '88px',
+                        height: '88px',
+                        borderRadius: '50%',
+                        background: 'var(--bb-accent-1)',
+                        border: 'var(--bb-border-w) solid var(--bb-ink)',
+                        boxShadow: '4px 4px 0 var(--bb-shadow)',
+                        color: 'var(--bb-ink)',
+                    }}
                 >
-                    <div className="flex items-center gap-3">
-                        <div className="text-2xl animate-float">{companion.emoji}</div>
-                        <div>
-                            <p className="text-sm font-medium" style={{ color: 'var(--theme-text, #334155)' }}>{localizedMotivationMessage}</p>
-                            <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{localizedCompanionSubtitle}</p>
-                        </div>
-                    </div>
+                    <span className="text-[28px] leading-none animate-float">{companion.emoji}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider mt-1">
+                        {companion.label || 'lvl'}
+                    </span>
                 </motion.div>
             </motion.div>
 
-            {/* Overview Cards */}
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {overviewCards.map((card, i) => (
-                    <motion.div
-                        key={card.label}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.15 + i * 0.06 }}
-                        className={`card overview-stat-card !p-4 !border-transparent shadow-sm`}
-                        style={isDark ? {} : { border: '1px solid var(--theme-border-light)' }}
-                    >
+            {/* ============ QUICK FOCUS CTA — big, sticker-style ============ */}
+            {isWidgetEnabled('quick-focus') && (
+                <motion.button
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    onClick={() => navigate('/pomodoro')}
+                    className="card card-interactive w-full text-left group"
+                    style={{ background: 'var(--bb-accent-1)', cursor: 'pointer' }}
+                >
+                    <div className="flex items-center gap-4">
                         <div
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm mb-2 stat-icon-wrap`}
+                            className="flex-shrink-0 flex items-center justify-center"
                             style={{
-                                background: isDark ? 'rgba(255,255,255,0.06)' : 'var(--theme-surface-hover, #F8FAFC)',
-                                color: card.iconColor
+                                width: '52px',
+                                height: '52px',
+                                borderRadius: '14px',
+                                background: 'var(--bb-card)',
+                                border: '2px solid var(--bb-ink)',
+                                color: 'var(--bb-ink)',
                             }}
                         >
-                            {card.icon}
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3" />
+                            </svg>
                         </div>
-                        <div className="text-xl font-bold leading-none mb-1 mt-3" style={{ color: 'var(--theme-text, #111827)' }}>{card.value}</div>
-                        <div className="text-[11.5px] font-medium" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{card.label}</div>
-                    </motion.div>
-                ))}
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.22fr)_minmax(340px,0.78fr)]">
-                {/* Left Column: 2/3 */}
-                <div className="space-y-6">
-                    {/* Header Top Elements */}
-                    <div className={`grid gap-5 ${suggestion && suggestion.type !== 'new' ? 'xl:grid-cols-2' : 'grid-cols-1'}`}>
-                        <div className="card relative overflow-hidden flex flex-col justify-center h-full">
-                            <div
-                                className="absolute top-0 left-0 w-2 h-full rounded-l-2xl"
-                                style={{
-                                    background: isDark
-                                        ? 'linear-gradient(180deg, rgba(99, 102, 241, 0.6) 0%, rgba(168, 85, 247, 0.6) 100%)'
-                                        : isBarbie
-                                            ? 'linear-gradient(180deg, rgba(225, 29, 114, 0.72) 0%, rgba(236, 72, 153, 0.42) 100%)'
-                                            : 'linear-gradient(180deg, rgba(129, 140, 248, 0.7) 0%, rgba(196, 181, 253, 0.9) 100%)',
-                                }}
-                            ></div>
-                            <h3 className="text-[11px] font-bold uppercase tracking-wider mb-2 pl-3" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{copy.quoteOfTheDay}</h3>
-                            <p className="italic font-medium leading-relaxed pl-3" style={{ color: 'var(--theme-text-secondary, #64748B)' }}>
-                                "{localizedQuoteText}" — {dailyQuote.author}
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--bb-ink)', opacity: 0.65 }}>
+                                {copy.quickFocus}
+                            </p>
+                            <p className="text-[18px] font-extrabold leading-tight mt-0.5" style={{ color: 'var(--bb-ink)' }}>
+                                {copy.startSession}
                             </p>
                         </div>
-
-                        {/* Smart Suggestion */}
-                        {suggestion && suggestion.type !== 'new' && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, rotate: -2 }}
-                                animate={{ opacity: 1, scale: 1, rotate: 1 }}
-                                className={`card flex gap-4 items-center p-5 transform transition-transform hover:rotate-0 h-full ${isDark ? 'border border-amber-500/15' : 'border'}`}
-                                style={isDark
-                                    ? { background: 'rgba(245, 158, 11, 0.06)' }
-                                    : {
-                                        background: isBarbie
-                                            ? 'linear-gradient(135deg, rgba(255, 244, 250, 1) 0%, rgba(249, 168, 212, 0.26) 100%)'
-                                            : 'linear-gradient(135deg, rgba(255,251,235,1) 0%, rgba(255,237,213,1) 100%)',
-                                        borderColor: isBarbie ? 'rgba(225, 29, 114, 0.14)' : 'rgba(251, 146, 60, 0.18)',
-                                    }}
-                            >
-                                <svg
-                                    width="24"
-                                    height="24"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="animate-float"
-                                    style={{ color: isDark ? '#FBBF24' : (isBarbie ? 'var(--theme-primary, #E11D74)' : '#D97706') }}
-                                ><line x1="12" y1="2" x2="12" y2="7" /><path d="M12 7l4 4-2 7H10l-2-7 4-4z" /></svg>
-                                <div className="flex-1">
-                                    <h3 className="text-[16px] font-bold mb-0.5" style={{ color: isDark ? '#FBBF24' : (isBarbie ? 'var(--theme-primary, #E11D74)' : '#78350F') }}>{copy.smartSuggestion}</h3>
-                                    <p className="text-[13px] font-medium leading-snug" style={{ color: isDark ? 'rgba(251, 191, 36, 0.7)' : (isBarbie ? 'var(--theme-text-secondary, #A61B64)' : 'rgba(120, 53, 15, 0.8)') }}>{localizedSuggestionMessage}</p>
-                                </div>
-                                {suggestion.courseId && (
-                                    <button
-                                        onClick={() => navigate(`/pomodoro?courseId=${suggestion.courseId}`)}
-                                        className="text-white rounded-lg px-4 py-2 text-[12px] font-semibold transition-opacity hover:opacity-90 shadow-sm"
-                                        style={{ background: isBarbie ? 'linear-gradient(135deg, #E11D74 0%, #EC4899 100%)' : 'rgba(217, 119, 6, 0.9)' }}
-                                    >
-                                        {copy.focus}
-                                    </button>
-                                )}
-                            </motion.div>
-                        )}
+                        <span
+                            className="hidden sm:inline-flex items-center justify-center"
+                            style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                background: 'var(--bb-card)',
+                                border: '2px solid var(--bb-ink)',
+                                color: 'var(--bb-ink)',
+                            }}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+                            </svg>
+                        </span>
                     </div>
+                </motion.button>
+            )}
+
+            {/* ============ TODAY'S STATS — 2x2 sticker grid ============ */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+                {overviewCards.map((card, i) => {
+                    const accentBg = ['var(--bb-accent-2)', 'var(--bb-accent-3)', 'var(--bb-accent-4)', 'var(--bb-accent-1)'][i % 4];
+                    return (
+                        <motion.div
+                            key={card.label}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15 + i * 0.05 }}
+                            className="card !p-4"
+                            style={{ background: accentBg }}
+                        >
+                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] mb-2" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                {card.label}
+                            </p>
+                            <p className="text-[26px] font-extrabold leading-none tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                {card.value}
+                            </p>
+                        </motion.div>
+                    );
+                })}
+            </div>
+
+            {/* ============ MAIN GRID — 2 columns on desktop ============ */}
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] gap-5">
+
+                {/* ─── LEFT COLUMN ─── */}
+                <div className="space-y-5">
+
+                    {/* Smart Suggestion (sticker callout) */}
+                    {suggestion && suggestion.type !== 'new' && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, rotate: -1.5 }}
+                            animate={{ opacity: 1, scale: 1, rotate: -1 }}
+                            className="card flex gap-4 items-center"
+                            style={{ background: 'var(--bb-accent-4)' }}
+                        >
+                            <div
+                                className="flex items-center justify-center flex-shrink-0"
+                                style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '50%',
+                                    background: 'var(--bb-card)',
+                                    border: '2px solid var(--bb-ink)',
+                                    color: 'var(--bb-ink)',
+                                }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M5.6 18.4l2.1-2.1M12 18v3M18.4 18.4l-2.1-2.1M21 12h-3M18.4 5.6l-2.1 2.1" /><circle cx="12" cy="12" r="4"/>
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] mb-1" style={{ color: 'var(--bb-ink)', opacity: 0.65 }}>
+                                    {copy.smartSuggestion}
+                                </p>
+                                <p className="text-[14px] font-bold leading-snug" style={{ color: 'var(--bb-ink)' }}>
+                                    {localizedSuggestionMessage}
+                                </p>
+                            </div>
+                            {suggestion.courseId && (
+                                <button
+                                    onClick={() => navigate(`/pomodoro?courseId=${suggestion.courseId}`)}
+                                    className="btn-primary flex-shrink-0"
+                                    style={{ background: 'var(--bb-card)' }}
+                                >
+                                    {copy.focus}
+                                </button>
+                            )}
+                        </motion.div>
+                    )}
 
                     {/* Today's Tasks */}
                     {isWidgetEnabled('today-tasks') && (
                         <div className="card">
-                            <div className="flex items-center justify-between mb-5">
-                                <h2 className="text-[18px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    📝 {copy.todayTasks}
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.todayTasks}
                                 </h2>
-                                <Link to="/tasks" className="text-[13px] font-semibold transition-opacity hover:opacity-80" style={{ color: 'var(--theme-primary, #4F46E5)' }}>{copy.viewAll}</Link>
+                                <Link
+                                    to="/tasks"
+                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
+                                    style={{ color: 'var(--bb-ink)' }}
+                                >
+                                    {copy.viewAll} →
+                                </Link>
                             </div>
-                            <div className="space-y-2">
-                                {todayTasks.length === 0 ? (
-                                    <div className={`py-6 px-5 rounded-2xl text-center empty-state-card ${isDark
-                                        ? 'border border-dashed'
-                                        : 'bg-gray-50/50 border border-gray-100'
-                                        }`}>
-                                        <p className="text-[14px] font-medium" style={{ color: isDark ? 'rgba(255,255,255,0.4)' : '#94A3B8' }}>{copy.noTasks}</p>
-                                        <button
-                                            onClick={() => navigate('/tasks')}
-                                            className={`mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-semibold transition-all ${isDark
-                                                ? 'bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/20'
-                                                : ''
-                                                }`}
-                                            style={isDark ? undefined : {
-                                                background: 'var(--theme-primary-bg, #EEF2FF)',
-                                                color: 'var(--theme-primary, #4F46E5)',
-                                                border: '1px solid var(--theme-border-light, #E0E7FF)',
-                                            }}
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                                            {copy.addTask}
-                                        </button>
-                                    </div>
-                                ) : (
-                                    todayTasks.slice(0, 5).map((task, i) => {
+                            {todayTasks.length === 0 ? (
+                                <div
+                                    className="empty-state-card text-center py-7 px-4"
+                                    style={{
+                                        borderRadius: '14px',
+                                        border: '2.5px dashed var(--bb-ink)',
+                                        background: 'var(--bb-paper)',
+                                    }}
+                                >
+                                    <p className="text-[13px] font-bold mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                        {copy.noTasks}
+                                    </p>
+                                    <button onClick={() => navigate('/tasks')} className="btn-primary">
+                                        + {copy.addTask}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {todayTasks.slice(0, 5).map((task, i) => {
                                         const course = getCourse(task.courseId);
                                         return (
                                             <motion.div
                                                 key={task.id}
                                                 initial={{ opacity: 0, x: -8 }}
                                                 animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.2 + i * 0.04 }}
-                                                className={`flex items-center gap-3 py-3 px-4 rounded-xl transition-colors dark-sub-card ${isDark
-                                                    ? 'hover:bg-white/5'
-                                                    : 'bg-gray-50/50 border border-gray-100 hover:bg-gray-100/50'
-                                                    }`}
+                                                transition={{ delay: 0.15 + i * 0.04 }}
+                                                className="flex items-center gap-3 py-2.5 px-3"
+                                                style={{
+                                                    borderRadius: '12px',
+                                                    border: '2px solid var(--bb-ink)',
+                                                    background: 'var(--bb-paper)',
+                                                }}
                                             >
                                                 <button
                                                     onClick={() => toggleTask(task.id)}
-                                                    className={`w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 transition-colors ${isDark
-                                                        ? 'border-white/20 hover:border-indigo-400'
-                                                        : 'border-slate-300 hover:border-blue-500'
-                                                        }`}
+                                                    aria-label="toggle task"
+                                                    style={{
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        flexShrink: 0,
+                                                        border: '2px solid var(--bb-ink)',
+                                                        borderRadius: '6px',
+                                                        background: 'var(--bb-card)',
+                                                        cursor: 'pointer',
+                                                    }}
                                                 />
-                                                <span className="text-[14px] font-medium flex-1 truncate" style={{ color: 'var(--theme-text, #334155)' }}>{task.title}</span>
+                                                <span className="text-[13px] font-bold flex-1 truncate" style={{ color: 'var(--bb-ink)' }}>
+                                                    {task.title}
+                                                </span>
                                                 {course && (
-                                                    <span className="badge text-[11px]" style={{ backgroundColor: course.color + (isDark ? '20' : '15'), color: isDark ? course.color + 'CC' : course.color }}>
+                                                    <span
+                                                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1"
+                                                        style={{
+                                                            borderRadius: '999px',
+                                                            border: '2px solid var(--bb-ink)',
+                                                            background: course.color,
+                                                            color: '#fff',
+                                                        }}
+                                                    >
                                                         {course.courseName}
                                                     </span>
                                                 )}
                                             </motion.div>
                                         );
-                                    })
-                                )}
-                            </div>
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
 
                     {/* Today's Schedule */}
                     {isWidgetEnabled('schedule-preview') && (
                         <div className="card">
-                            <div className="flex items-center justify-between mb-5">
-                                <h2 className="text-[18px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    📅 {copy.todaySchedule}
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.todaySchedule}
                                 </h2>
-                                <Link to="/schedule" className="text-[13px] font-semibold transition-opacity hover:opacity-80" style={{ color: 'var(--theme-primary, #4F46E5)' }}>{copy.viewSchedule}</Link>
+                                <Link
+                                    to="/schedule"
+                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
+                                    style={{ color: 'var(--bb-ink)' }}
+                                >
+                                    {copy.viewSchedule} →
+                                </Link>
                             </div>
                             {todaySchedule.length === 0 ? (
-                                <div className={`text-center py-8 rounded-2xl empty-state-card ${isDark
-                                    ? 'border border-dashed'
-                                    : 'bg-gray-50/50 border border-dashed border-gray-200'
-                                    }`}>
-                                    <p className="text-[13px] font-medium" style={{ color: isDark ? 'rgba(255,255,255,0.35)' : '#94A3B8' }}>{copy.noSchedule}</p>
+                                <div
+                                    className="empty-state-card text-center py-7 px-4"
+                                    style={{
+                                        borderRadius: '14px',
+                                        border: '2.5px dashed var(--bb-ink)',
+                                        background: 'var(--bb-paper)',
+                                    }}
+                                >
+                                    <p className="text-[13px] font-bold" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                        {copy.noSchedule}
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="grid gap-3 sm:grid-cols-2">
@@ -507,15 +572,31 @@ export default function HomePage() {
                                         return (
                                             <div
                                                 key={entry.id}
-                                                className={`flex items-center gap-3 py-3 px-4 rounded-xl transition-colors cursor-pointer dark-sub-card ${isDark
-                                                    ? 'hover:bg-white/5'
-                                                    : 'bg-gray-50/50 border border-gray-100 hover:bg-gray-100/50'
-                                                    }`}
+                                                className="flex items-center gap-3 py-2.5 px-3"
+                                                style={{
+                                                    borderRadius: '12px',
+                                                    border: '2px solid var(--bb-ink)',
+                                                    background: 'var(--bb-paper)',
+                                                    cursor: 'pointer',
+                                                }}
                                             >
-                                                <div className="w-1.5 h-10 rounded-full flex-shrink-0" style={{ backgroundColor: course?.color || '#94a3b8' }}></div>
+                                                <div
+                                                    style={{
+                                                        width: '6px',
+                                                        height: '36px',
+                                                        borderRadius: '3px',
+                                                        flexShrink: 0,
+                                                        background: course?.color || 'var(--bb-ink)',
+                                                        border: '1.5px solid var(--bb-ink)',
+                                                    }}
+                                                />
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="text-[13px] font-bold truncate mb-0.5" style={{ color: 'var(--theme-text, #334155)' }}>{course?.courseName || copy.viewCourseFallback}</div>
-                                                    <div className="text-[12px] font-medium" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{formatTime24(entry.startTime)} - {formatTime24(entry.endTime)}</div>
+                                                    <div className="text-[13px] font-extrabold truncate" style={{ color: 'var(--bb-ink)' }}>
+                                                        {course?.courseName || copy.viewCourseFallback}
+                                                    </div>
+                                                    <div className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--bb-ink)', opacity: 0.6 }}>
+                                                        {formatTime24(entry.startTime)} – {formatTime24(entry.endTime)}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -528,21 +609,18 @@ export default function HomePage() {
                     {/* Daily Reflection */}
                     {todaySessions.length > 0 && !user?.dailyReflections?.[today] && (
                         <motion.div
-                            initial={{ opacity: 0, y: 5 }}
+                            initial={{ opacity: 0, y: 6 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`card shadow-sm p-5 mt-5 ${isDark ? 'border border-indigo-500/10' : 'border'}`}
-                            style={isDark
-                                ? { background: 'rgba(99, 102, 241, 0.06)' }
-                                : {
-                                    background: isBarbie
-                                        ? 'linear-gradient(135deg, rgba(255, 249, 252, 1) 0%, rgba(253, 230, 241, 0.92) 100%)'
-                                        : 'linear-gradient(90deg, rgba(248,250,252,1) 0%, rgba(239,246,255,1) 100%)',
-                                    borderColor: isBarbie ? 'rgba(225, 29, 114, 0.1)' : 'rgba(226,232,240,1)',
-                                }}
+                            className="card"
+                            style={{ background: 'var(--bb-accent-3)' }}
                         >
-                            <h3 className="text-[18px] font-bold mb-1" style={{ color: 'var(--theme-text, #111827)' }}>{copy.dailyReflection}</h3>
-                            <p className="text-[13px] mb-4" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>{copy.dailyReflectionPrompt}</p>
-                            <div className="flex gap-3">
+                            <h3 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                {copy.dailyReflection}
+                            </h3>
+                            <p className="text-[12px] font-medium mt-1 mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                {copy.dailyReflectionPrompt}
+                            </p>
+                            <div className="grid grid-cols-3 gap-2">
                                 {[
                                     { label: copy.productive, emoji: '🙂', value: 'productive' },
                                     { label: copy.average, emoji: '😐', value: 'average' },
@@ -551,17 +629,11 @@ export default function HomePage() {
                                     <button
                                         key={opt.value}
                                         onClick={() => handleReflection(opt.value)}
-                                        className={`flex-1 py-2 px-3 rounded-xl text-[13px] font-medium transition-colors shadow-sm flex items-center justify-center gap-2 ${isDark
-                                            ? 'bg-white/5 hover:bg-white/10 border border-white/6'
-                                            : ''
-                                            }`}
-                                        style={isDark ? { color: 'var(--theme-text, #E2E8F0)' } : {
-                                            background: isBarbie ? 'rgba(255, 255, 255, 0.92)' : '#FFFFFF',
-                                            color: 'var(--theme-text, #334155)',
-                                            border: `1px solid ${isBarbie ? 'rgba(225, 29, 114, 0.12)' : 'rgba(226, 232, 240, 0.8)'}`,
-                                        }}
+                                        className="btn-secondary justify-center"
+                                        style={{ flexDirection: 'column', padding: '0.625rem', fontSize: '11px' }}
                                     >
-                                        <span className="text-lg">{opt.emoji}</span> {opt.label}
+                                        <span className="text-[18px]" style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji",emoji' }}>{opt.emoji}</span>
+                                        <span className="font-bold uppercase tracking-wider mt-1">{opt.label}</span>
                                     </button>
                                 ))}
                             </div>
@@ -569,227 +641,222 @@ export default function HomePage() {
                     )}
                 </div>
 
-                {/* Right Column: 1/3 */}
+                {/* ─── RIGHT COLUMN ─── */}
                 <div className="space-y-5">
-                    {/* Quick Focus */}
-                    {isWidgetEnabled('quick-focus') && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.25 }}
-                            className={`rounded-2xl p-5 text-white quick-focus-card shadow-lg shadow-black/5`}
-                            style={{ background: 'var(--theme-primary, #4F46E5)' }}
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div>
-                                    <h3 className="font-bold text-[16px]">{copy.quickFocus}</h3>
-                                    <p className="text-white/80 text-[12px] font-medium mt-0.5">{copy.quickFocusSubtitle}</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => navigate('/pomodoro')}
-                                className="bg-white/20 hover:bg-white/30 text-white text-[13px] font-semibold px-4 py-2.5 rounded-2xl transition-all w-full backdrop-blur-md shadow-sm border border-white/10 flex items-center justify-center gap-2"
-                            >
-                                <span className="animate-float">⏱️</span> {copy.startSession}
-                            </button>
-                        </motion.div>
-                    )}
 
-                    {/* Global Study Room */}
-                    {isWidgetEnabled('global-study-room') && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className={`rounded-2xl p-5 border ${isDark
-                                ? 'bg-indigo-900/10 border-indigo-500/15'
-                                : 'border'
-                                }`}
-                            style={{
-                                background: (activeThemeKey === 'latte')
-                                    ? 'radial-gradient(circle at center, #FFF8F0 0%, #EFE5DD 100%)'
-                                    : (isBarbie)
-                                        ? 'radial-gradient(circle at center, rgba(255, 247, 251, 1) 0%, rgba(249, 168, 212, 0.24) 100%)'
-                                    : (isDark ? 'rgba(99, 102, 241, 0.04)' : undefined)
-                            }}
-                        >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-[15px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    🌍 {copy.globalStudyRoom}
-                                </h3>
-                                <span className="flex items-center gap-1.5" style={{ color: activeThemeKey === 'nature' ? '#22c55e' : (isDark ? '#818CF8' : 'var(--theme-primary, #4F46E5)') }}>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]"></span>
-                                    <span className="text-[11px] font-bold uppercase tracking-wider">{copy.live}</span>
-                                </span>
-                            </div>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="text-[28px] font-extrabold tracking-tight leading-none" style={{ color: 'var(--theme-text, #111827)' }}>
-                                        {focusingUsers.length || studyRoomUsers.length}
-                                    </div>
-                                    <div className="text-[13px] font-medium leading-tight" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                        {roomCountLines[0]}<br />{roomCountLines[1]}
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-[12px] font-medium"
-                                    style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.62)', color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                    <span>{isPublicPresenceEnabled ? copy.publicPresenceOn : copy.publicPresenceOff}</span>
-                                    <button
-                                        onClick={() => updateUser({ publicProfileEnabled: !isPublicPresenceEnabled })}
-                                        className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition-colors"
-                                        style={{
-                                            color: 'var(--theme-primary, #4F46E5)',
-                                            backgroundColor: isDark ? 'rgba(99, 102, 241, 0.14)' : 'rgba(255,255,255,0.88)',
-                                            border: `1px solid ${isBarbie ? 'rgba(225, 29, 114, 0.18)' : 'rgba(99,102,241,0.18)'}`,
-                                        }}
-                                    >
-                                        {isPublicPresenceEnabled ? copy.disablePublicPresence : copy.enablePublicPresence}
-                                    </button>
-                                </div>
-                                {displayedStudyRoomUsers.length > 0 ? (
-                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                        {displayedStudyRoomUsers.map((member) => (
-                                            <div
-                                                key={member.id}
-                                                className="h-7 px-2.5 rounded-full bg-white/50 flex items-center justify-center text-[11px] font-semibold shadow-sm border border-black/5 overflow-hidden"
-                                                style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'white', color: 'var(--theme-text, #111827)' }}
-                                            >
-                                                {(typeof member.displayName === 'string' && member.displayName.trim()
-                                                    ? member.displayName
-                                                    : 'Student').split(' ')[0]}
-                                            </div>
-                                        ))}
-                                        {studyRoomUsers.length > displayedStudyRoomUsers.length && (
-                                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'var(--theme-primary-bg, #E2E8F0)', color: isDark ? '#94A3B8' : 'var(--theme-text-secondary, #64748B)' }}>
-                                                +{studyRoomUsers.length - displayedStudyRoomUsers.length}
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="rounded-xl px-3 py-2 text-[12px] font-medium" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.6)', color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                        {copy.nobodyActive}
-                                    </div>
-                                )}
-                                {roomHeadline && (
-                                    <div className="text-[12px] leading-relaxed" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>
-                                        {roomHeadline}
-                                    </div>
-                                )}
-                                <button
-                                    onClick={() => navigate('/pomodoro?mode=deep')}
-                                    className={`mt-2 w-full py-2.5 rounded-xl text-[13px] font-bold transition-colors shadow-sm`}
-                                    style={{
-                                        color: 'var(--theme-primary, #4F46E5)',
-                                        background: 'var(--theme-primary-bg, white)',
-                                        border: '1px solid var(--theme-primary, #EEF2FF)'
-                                    }}
-                                >
-                                    {copy.joinStudyRoom}
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* Weekly Goal — gradient bar matching Quick Focus */}
+                    {/* Weekly Goal */}
                     {isWidgetEnabled('weekly-goal') && (
                         <motion.div
-                            initial={{ opacity: 0, y: 10 }}
+                            initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.12 }}
                             className="card card-interactive"
+                            style={{ background: 'var(--bb-accent-2)' }}
                             onClick={() => { setGoalInput(Math.round(weeklyGoal / 60).toString()); setShowGoalModal(true); }}
                         >
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-[16px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    🎯 {copy.weeklyGoal}
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.weeklyGoal}
                                 </h3>
-                                <span
-                                    className="text-[12px] px-2.5 py-1 rounded-lg font-bold"
-                                    style={{
-                                        backgroundColor: isDark ? 'rgba(99, 102, 241, 0.12)' : 'var(--theme-primary-bg, #EEF2FF)',
-                                        color: 'var(--theme-primary, #6366F1)'
-                                    }}
-                                >
+                                <span className="badge" style={{ background: 'var(--bb-card)' }}>
                                     {Math.round(weeklyProgress)}%
                                 </span>
                             </div>
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-baseline gap-1.5">
-                                    <span className="text-[24px] font-extrabold leading-none tracking-tight" style={{ color: 'var(--theme-text, #111827)' }}>
-                                        {Math.floor(weeklyMinutes / 60)}h {weeklyMinutes % 60}m
-                                    </span>
-                                    <span className="text-[13px] font-medium" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>/ {Math.floor(weeklyGoal / 60)}h {copy.goalSuffix}</span>
-                                </div>
-                                <div className="w-full h-3 rounded-full overflow-hidden weekly-goal-bar" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : 'var(--theme-primary-bg, #EEF2FF)' }}>
-                                    <motion.div
-                                        className="h-full rounded-full weekly-goal-fill"
-                                        style={{ background: isDark ? undefined : `linear-gradient(90deg, var(--theme-primary, #4F46E5) 0%, ${isBarbie ? '#F472B6' : 'var(--theme-primary, #4F46E5)'} 100%)` }}
-                                        initial={{ width: 0 }}
-                                        animate={{ width: `${weeklyProgress}%` }}
-                                        transition={{ duration: 1, delay: 0.3 }}
-                                    >
-                                    </motion.div>
-                                </div>
+                            <p className="text-[24px] font-extrabold leading-none mb-1" style={{ color: 'var(--bb-ink)' }}>
+                                {Math.floor(weeklyMinutes / 60)}h {weeklyMinutes % 60}m
+                            </p>
+                            <p className="text-[11px] font-bold mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                / {Math.floor(weeklyGoal / 60)}h {copy.goalSuffix}
+                            </p>
+                            <div className="weekly-goal-bar w-full" style={{ height: '12px', borderRadius: '8px', background: 'var(--bb-card)', border: '2px solid var(--bb-ink)', overflow: 'hidden' }}>
+                                <motion.div
+                                    className="weekly-goal-fill h-full"
+                                    style={{ background: 'var(--bb-ink)' }}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${weeklyProgress}%` }}
+                                    transition={{ duration: 1, delay: 0.3 }}
+                                />
                             </div>
                         </motion.div>
                     )}
 
-                    {/* Rewards / Streak */}
+                    {/* Rewards / Sky */}
                     {isWidgetEnabled('streak-status') && (
                         <div className="card">
-                            <div className="flex items-center justify-between mb-5">
-                                <h3 className="text-[16px] font-bold flex items-center gap-2" style={{ color: 'var(--theme-text, #111827)' }}>
-                                    ✨ {copy.yourSky}
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.yourSky}
                                 </h3>
-                                <Link to="/rewards" className="text-[13px] font-semibold transition-opacity hover:opacity-80" style={{ color: 'var(--theme-primary, #4F46E5)' }}>{copy.details}</Link>
+                                <Link
+                                    to="/rewards"
+                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
+                                    style={{ color: 'var(--bb-ink)' }}
+                                >
+                                    {copy.details} →
+                                </Link>
                             </div>
-
                             <YourSkyScene
                                 compact
                                 sessionsCompleted={stats.totalSessions}
                                 streak={user?.streakCount || 0}
                                 totalMinutes={stats.totalMinutes}
-                                className="mb-4"
+                                className="mb-3"
                             />
-
-                            {/* Streak Protection */}
                             {user?.streakCount > 0 && !user?.streakProtected && (
                                 <button
                                     onClick={handleProtectStreak}
-                                    className={`w-full mt-4 py-3 px-4 rounded-xl text-[13px] font-bold flex items-center justify-between transition-all shadow-sm streak-protect-btn ${isDark
-                                        ? 'text-orange-300 border'
-                                        : ''
-                                        }`}
-                                    style={isDark ? undefined : {
-                                        background: isBarbie ? 'rgba(253, 230, 241, 0.88)' : 'rgba(255, 247, 237, 1)',
-                                        border: `1px solid ${isBarbie ? 'rgba(225, 29, 114, 0.14)' : 'rgba(251, 146, 60, 0.18)'}`,
-                                        color: isBarbie ? 'var(--theme-primary, #E11D74)' : '#C2410C',
+                                    className="w-full flex items-center justify-between py-2.5 px-3 mt-2"
+                                    style={{
+                                        borderRadius: '12px',
+                                        border: '2px solid var(--bb-ink)',
+                                        background: 'var(--bb-accent-1)',
+                                        color: 'var(--bb-ink)',
+                                        cursor: 'pointer',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
                                     }}
                                 >
-                                    <span className="flex items-center gap-2"><span className="text-lg">🛡️</span> {copy.protectStreak}</span>
+                                    <span className="flex items-center gap-2">
+                                        <span style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji",emoji' }}>🛡️</span>
+                                        {copy.protectStreak}
+                                    </span>
                                     <span
-                                        className={`px-2 py-0.5 rounded ${isDark ? 'bg-orange-500/15 text-orange-300' : ''}`}
-                                        style={isDark ? undefined : {
-                                            background: isBarbie ? 'rgba(225, 29, 114, 0.12)' : 'rgba(254, 215, 170, 0.8)',
-                                            color: isBarbie ? 'var(--theme-primary, #E11D74)' : '#9A3412',
+                                        className="px-2 py-0.5"
+                                        style={{
+                                            borderRadius: '6px',
+                                            border: '1.5px solid var(--bb-ink)',
+                                            background: 'var(--bb-card)',
+                                            fontSize: '10px',
                                         }}
-                                    >50 {locale === 'tr' ? 'jeton' : 'coins'}</span>
+                                    >
+                                        50 {locale === 'tr' ? 'jeton' : 'coins'}
+                                    </span>
                                 </button>
                             )}
                             {user?.streakProtected && (
-                                <div className={`w-full mt-4 py-3 px-4 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 shadow-sm ${isDark
-                                    ? 'bg-emerald-500/10 border border-emerald-500/15 text-emerald-300'
-                                    : 'bg-emerald-50 border border-emerald-100 text-emerald-700'
-                                    }`}>
-                                    <span className="text-lg">✨</span> {copy.streakProtected}
+                                <div
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 mt-2"
+                                    style={{
+                                        borderRadius: '12px',
+                                        border: '2px solid var(--bb-ink)',
+                                        background: 'var(--bb-accent-2)',
+                                        color: 'var(--bb-ink)',
+                                        fontSize: '12px',
+                                        fontWeight: '700',
+                                    }}
+                                >
+                                    <span style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji",emoji' }}>✨</span>
+                                    {copy.streakProtected}
                                 </div>
                             )}
                         </div>
                     )}
+
+                    {/* Global Study Room — sade brutalist */}
+                    {isWidgetEnabled('global-study-room') && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="card"
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.globalStudyRoom}
+                                </h3>
+                                <span
+                                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider"
+                                    style={{ color: 'var(--bb-ink)' }}
+                                >
+                                    <span
+                                        className="animate-pulse"
+                                        style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            background: 'var(--bb-accent-5)',
+                                            border: '1.5px solid var(--bb-ink)',
+                                        }}
+                                    />
+                                    {copy.live}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3 mb-3">
+                                <p className="text-[36px] font-extrabold leading-none tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {focusingUsers.length || studyRoomUsers.length}
+                                </p>
+                                <p className="text-[11px] font-bold leading-tight" style={{ color: 'var(--bb-ink)', opacity: 0.65 }}>
+                                    {roomCountLines[0]}<br />{roomCountLines[1]}
+                                </p>
+                            </div>
+                            {displayedStudyRoomUsers.length > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                                    {displayedStudyRoomUsers.map((member) => (
+                                        <div
+                                            key={member.id}
+                                            className="px-2 py-1 text-[10px] font-bold"
+                                            style={{
+                                                borderRadius: '999px',
+                                                border: '2px solid var(--bb-ink)',
+                                                background: 'var(--bb-paper)',
+                                                color: 'var(--bb-ink)',
+                                            }}
+                                        >
+                                            {(typeof member.displayName === 'string' && member.displayName.trim()
+                                                ? member.displayName
+                                                : 'Student').split(' ')[0]}
+                                        </div>
+                                    ))}
+                                    {studyRoomUsers.length > displayedStudyRoomUsers.length && (
+                                        <div
+                                            className="px-2 py-1 text-[10px] font-bold"
+                                            style={{
+                                                borderRadius: '999px',
+                                                border: '2px solid var(--bb-ink)',
+                                                background: 'var(--bb-accent-1)',
+                                                color: 'var(--bb-ink)',
+                                            }}
+                                        >
+                                            +{studyRoomUsers.length - displayedStudyRoomUsers.length}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <button
+                                onClick={() => navigate('/pomodoro?mode=deep')}
+                                className="btn-primary w-full justify-center"
+                            >
+                                {copy.joinStudyRoom}
+                            </button>
+                            <button
+                                onClick={() => updateUser({ publicProfileEnabled: !isPublicPresenceEnabled })}
+                                className="text-[11px] font-bold uppercase tracking-wider w-full text-center mt-2 underline-offset-2 hover:underline"
+                                style={{ color: 'var(--bb-ink)', opacity: 0.65, background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                            >
+                                {isPublicPresenceEnabled ? copy.disablePublicPresence : copy.enablePublicPresence}
+                            </button>
+                        </motion.div>
+                    )}
+
+                    {/* Quote of the Day */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="card"
+                        style={{ background: 'var(--bb-paper)' }}
+                    >
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--bb-ink)', opacity: 0.55 }}>
+                            {copy.quoteOfTheDay}
+                        </p>
+                        <p className="text-[14px] font-medium italic leading-relaxed" style={{ color: 'var(--bb-ink)' }}>
+                            "{localizedQuoteText}"
+                        </p>
+                        <p className="text-[11px] font-bold uppercase tracking-wider mt-2" style={{ color: 'var(--bb-ink)', opacity: 0.6 }}>
+                            — {dailyQuote.author}
+                        </p>
+                    </motion.div>
                 </div>
             </div>
 
-            {/* Weekly Goal Modal */}
+            {/* ============ MODALS ============ */}
             <Modal isOpen={showGoalModal} onClose={() => setShowGoalModal(false)} title={copy.weeklyStudyGoal}>
                 <div className="space-y-4">
                     <div>
@@ -813,53 +880,45 @@ export default function HomePage() {
                 </div>
             </Modal>
 
-            {/* Widget Customization Modal */}
             <Modal
                 isOpen={showWidgetModal}
                 onClose={() => setShowWidgetModal(false)}
                 title={copy.customizeDashboardModal}
-                panelClassName="!max-w-[620px] !rounded-[32px] !border !px-6 !pb-6 !pt-7"
-                titleClassName="!text-[20px] !font-bold tracking-tight"
-                closeButtonClassName="rounded-full p-2 hover:bg-white/5"
             >
-                <div
-                    className="space-y-6"
-                    style={{
-                        color: 'var(--theme-text, #F8FAFC)',
-                    }}
-                >
-                    <p className="text-[15px] leading-7" style={{ color: 'var(--theme-text-muted, #94A3B8)' }}>
+                <div className="space-y-4">
+                    <p className="text-[13px] font-medium" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
                         {copy.customizeDashboardDescription}
                     </p>
-                    <div className="space-y-3">
-                    {(widgets || DEFAULT_WIDGETS).map((widget) => (
-                        <label
-                            key={widget.id}
-                            className="flex items-center gap-4 rounded-2xl px-4 py-4 transition-colors cursor-pointer"
-                            style={{
-                                background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.03)',
-                                border: '1px solid rgba(148, 163, 184, 0.12)',
-                            }}
-                        >
-                            <input
-                                type="checkbox"
-                                checked={widget.enabled}
-                                onChange={() => toggleWidget(widget.id)}
-                                className="h-5 w-5 rounded-md accent-indigo-400"
-                            />
-                            <span className="text-[17px] font-medium" style={{ color: 'var(--theme-text, #F8FAFC)' }}>
-                                {copy.widgetNames[widget.id] || widget.name}
-                            </span>
-                        </label>
-                    ))}
+                    <div className="space-y-2">
+                        {(widgets || DEFAULT_WIDGETS).map((widget) => (
+                            <label
+                                key={widget.id}
+                                className="flex items-center gap-3 px-3 py-3 cursor-pointer"
+                                style={{
+                                    borderRadius: '12px',
+                                    border: '2px solid var(--bb-ink)',
+                                    background: widget.enabled ? 'var(--bb-accent-1)' : 'var(--bb-paper)',
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={widget.enabled}
+                                    onChange={() => toggleWidget(widget.id)}
+                                    style={{
+                                        width: '18px',
+                                        height: '18px',
+                                        accentColor: 'var(--bb-ink)',
+                                    }}
+                                />
+                                <span className="text-[14px] font-bold" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.widgetNames[widget.id] || widget.name}
+                                </span>
+                            </label>
+                        ))}
                     </div>
                     <button
                         onClick={() => setShowWidgetModal(false)}
-                        className="w-full justify-center rounded-[22px] px-6 py-4 text-[17px] font-semibold text-white shadow-lg transition hover:opacity-95"
-                        style={{
-                            background: 'linear-gradient(135deg, #5B6EE8 0%, #7C63F5 100%)',
-                            boxShadow: '0 18px 36px rgba(99, 102, 241, 0.22)',
-                        }}
+                        className="btn-primary w-full justify-center"
                     >
                         {copy.done}
                     </button>
