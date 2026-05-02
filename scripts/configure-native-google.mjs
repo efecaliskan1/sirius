@@ -41,14 +41,17 @@ function getReversedGoogleClientId(clientId) {
 }
 
 function upsertSimpleKey(xml, key, value) {
-  const keyPattern = new RegExp(`<key>${key}</key>\\s*<string>.*?<\\/string>`, 's');
-  const replacement = `<key>${key}</key>\n\t<string>${value}</string>`;
+  const keyPattern = new RegExp(`\\n\\s*<key>${key}</key>\\s*<string>.*?<\\/string>`, 's');
+  const replacement = `\n\t<key>${key}</key>\n\t<string>${value}</string>`;
+  const withoutExistingKey = xml.replace(keyPattern, '');
 
-  if (keyPattern.test(xml)) {
-    return xml.replace(keyPattern, replacement);
+  const rootDictEndIndex = withoutExistingKey.lastIndexOf('</dict>');
+
+  if (rootDictEndIndex === -1) {
+    return withoutExistingKey;
   }
 
-  return xml.replace('</dict>', `\t${replacement}\n</dict>`);
+  return `${withoutExistingKey.slice(0, rootDictEndIndex)}${replacement}\n${withoutExistingKey.slice(rootDictEndIndex)}`;
 }
 
 function upsertUrlTypes(xml, reversedClientId) {

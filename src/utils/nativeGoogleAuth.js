@@ -32,7 +32,7 @@ export function isNativeGoogleConfigured() {
     const platform = getNativePlatform();
 
     if (platform === 'ios') {
-        return Boolean(NATIVE_GOOGLE_IOS_CLIENT_ID);
+        return Boolean(NATIVE_GOOGLE_IOS_CLIENT_ID && NATIVE_GOOGLE_WEB_CLIENT_ID);
     }
 
     return true;
