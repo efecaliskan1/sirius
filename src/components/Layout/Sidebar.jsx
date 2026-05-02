@@ -114,11 +114,10 @@ export default function Sidebar({ mobile = false, isOpen = false, onClose = () =
         : 'fixed left-0 top-0 z-30 h-screen w-[240px]';
 
     return (
-        <aside className={`${shellClasses} sidebar-themed box-border flex flex-col border-r border-opacity-70 backdrop-blur-sm transition-colors duration-300`}
+        <aside className={`${shellClasses} sidebar-themed box-border flex flex-col transition-colors duration-300`}
             style={{
-                borderRightWidth: '1.5px',
-                borderColor: isDark ? 'rgba(255,255,255,0.06)' : '#E0E7FF',
-                boxShadow: isDark ? '1px 0 20px rgba(0,0,0,0.2)' : '1px 0 10px rgba(0,0,0,0.01)',
+                borderRight: 'var(--bb-border-w) solid var(--bb-ink, #1a1a1a)',
+                boxShadow: 'none',
             }}>
             {/* Profile */}
             <div className="px-5 pt-6 pb-4">
@@ -182,25 +181,27 @@ export default function Sidebar({ mobile = false, isOpen = false, onClose = () =
                         }}
                         className={({ isActive }) =>
                             `flex items-center gap-3 py-2.5 text-[13px] transition-all duration-150 sidebar-nav-item ${isActive
-                                ? `font-semibold border-l-[3px] px-[9px] rounded-r-xl rounded-l-none`
-                                : `font-medium px-3 rounded-xl hover:bg-[var(--theme-surface-hover)] ${isDark
-                                    ? 'text-white/50 hover:bg-white/5 hover:text-white/80'
-                                    : 'hover:opacity-80'
+                                ? `font-bold sidebar-nav-active px-3 rounded-xl`
+                                : `font-medium px-3 rounded-xl ${isDark
+                                    ? 'text-white/60 hover:bg-white/5 hover:text-white'
+                                    : 'hover:bg-[var(--bb-card)]'
                                 }`
                             }`
                         }
                         style={({ isActive }) => isActive ? {
-                            background: 'var(--theme-primary-bg, #EEF2FF)',
-                            color: 'var(--theme-primary, #4F46E5)',
-                            borderColor: 'var(--theme-primary, #6366F1)'
+                            background: 'var(--bb-accent-1)',
+                            color: 'var(--bb-ink)',
+                            border: '2px solid var(--bb-ink)',
+                            boxShadow: '2px 2px 0 var(--bb-shadow)',
                         } : {
-                            color: 'var(--theme-text-secondary, #64748B)'
+                            color: 'var(--bb-ink, var(--theme-text-secondary, #64748B))',
+                            border: '2px solid transparent',
                         }}
                     >
                         {({ isActive }) => (
                             <>
                                 <span className={`nav-icon ${isActive ? 'opacity-100' : 'opacity-80'}`}
-                                    style={{ color: isActive ? 'var(--theme-primary, #4F46E5)' : 'currentColor' }}
+                                    style={{ color: isActive ? 'var(--bb-ink)' : 'currentColor' }}
                                 >
                                     {item.icon}
                                 </span>
