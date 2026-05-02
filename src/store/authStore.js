@@ -487,30 +487,46 @@ async function ensureNativeGoogleInitialized() {
 
 async function signInWithRecoveredNativeGoogle(nativeResult) {
     if (!nativeResult?.idToken) {
+        console.error('[Sirius Google] Native sign-in basarili ama idToken yok', nativeResult);
         throw createAuthError('auth/native-google-token-missing');
     }
+
+    console.log('[Sirius Google] idToken alindi, Firebase credential olusturuluyor');
 
     const credential = GoogleAuthProvider.credential(
         nativeResult.idToken,
         nativeResult.accessToken || null
     );
-    const result = await withNativeGoogleTimeout(signInWithCredential(auth, credential), 45000);
-    return buildFallbackAuthenticatedUser(result.user);
+
+    try {
+        const result = await withNativeGoogleTimeout(signInWithCredential(auth, credential), 30000);
+        console.log('[Sirius Google] Firebase signInWithCredential basarili, uid:', result.user?.uid);
+        return buildFallbackAuthenticatedUser(result.user);
+    } catch (error) {
+        console.error('[Sirius Google] Firebase signInWithCredential hatasi:', error?.code || error?.message);
+        throw error;
+    }
 }
 
 async function recoverTimedOutNativeGoogleSignIn(timeoutError) {
-    for (let attempt = 0; attempt < 6; attempt += 1) {
+    if (typeof GoogleSignIn.getCurrentUser !== 'function') {
+        console.warn('[Sirius Google] getCurrentUser plugin metodu bulunamadi, kurtarma atlaniyor');
+        throw timeoutError;
+    }
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
         try {
             const recoveredUser = await GoogleSignIn.getCurrentUser();
 
             if (recoveredUser?.idToken) {
+                console.log('[Sirius Google] Timeout sonrasi user kurtarildi');
                 return recoveredUser;
             }
-        } catch {
-            // Native Google state henuz oturmamissa bir sonraki denemeye geciyoruz.
+        } catch (error) {
+            console.warn(`[Sirius Google] getCurrentUser deneme ${attempt + 1} basarisiz:`, error?.message || error);
         }
 
-        await delay(1500);
+        await delay(1000);
     }
 
     throw timeoutError;
@@ -977,31 +993,44 @@ const useAuthStore = create((set, get) => ({
         clearPendingAuthReset();
         isExplicitLogoutInFlight = false;
         if (IS_NATIVE_PLATFORM) {
+            console.log('[Sirius Google] Native sign-in baslatiliyor, platform:', Capacitor.getPlatform());
             await ensurePreferredPersistence();
             await ensureNativeGoogleInitialized();
+            console.log('[Sirius Google] Plugin initialize tamamlandi');
 
             try {
                 await GoogleSignIn.signOut();
-            } catch {
-                // Native Google tarafinda aktif oturum yoksa sessizce devam ediyoruz.
+            } catch (signOutError) {
+                console.log('[Sirius Google] Onceki signOut atlandi:', signOutError?.message);
             }
 
             let nativeResult;
 
             try {
+                console.log('[Sirius Google] GoogleSignIn.signIn() cagriliyor...');
                 nativeResult = await withNativeGoogleTimeout(
                     GoogleSignIn.signIn(),
-                    45000
+                    60000
                 );
+                console.log('[Sirius Google] signIn tamamlandi - idToken:', !!nativeResult?.idToken, 'email:', nativeResult?.email);
             } catch (error) {
+                console.error('[Sirius Google] signIn hatasi:', error?.code || error?.message || error);
                 if (error?.code === 'auth/native-google-timeout') {
+                    console.log('[Sirius Google] Timeout - getCurrentUser ile kurtarma deneniyor');
                     nativeResult = await recoverTimedOutNativeGoogleSignIn(error);
                 } else {
                     throw error;
                 }
             }
 
+            if (!nativeResult?.idToken) {
+                console.error('[Sirius Google] idToken alinamadi');
+                throw createAuthError('auth/native-google-token-missing');
+            }
+
+            console.log('[Sirius Google] Firebase credential exchange basliyor');
             const fallbackUser = await signInWithRecoveredNativeGoogle(nativeResult);
+            console.log('[Sirius Google] Tum surec tamamlandi:', fallbackUser?.email);
 
             saveAuthToLocal(fallbackUser);
             set({ user: fallbackUser, isAuthenticated: true, authError: '' });
