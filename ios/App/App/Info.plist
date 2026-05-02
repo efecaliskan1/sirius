@@ -56,8 +56,6 @@
 	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>GIDClientID</key>
-	<string>884632638089-cffcc2h0c5btfj0ogrb14e1413sso1nv.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -67,5 +65,8 @@
 			</array>
 		</dict>
 	</array>
+
+	<key>GIDClientID</key>
+	<string>884632638089-cffcc2h0c5btfj0ogrb14e1413sso1nv.apps.googleusercontent.com</string>
 </dict>
 </plist>

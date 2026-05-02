@@ -485,6 +485,31 @@ async function ensureNativeGoogleInitialized() {
     await nativeGoogleInitializationPromise;
 }
 
+// Belt-and-braces: even after the persistence fix in firebase/config.js
+// some iOS builds still leave the WKWebView main run loop briefly
+// suspended after the native Google Sign-In view controller is dismissed.
+// Posting a message + a setTimeout(0) before signInWithCredential is the
+// canonical workaround that nudges the JS event loop back to life so the
+// firebase JS SDK promise can resolve immediately instead of hanging
+// until the user taps the screen.
+//   https://github.com/firebase/firebase-js-sdk/issues/2700
+function wakeUpWebViewEventLoop() {
+    return new Promise((resolve) => {
+        try {
+            if (typeof window !== 'undefined' && typeof window.postMessage === 'function') {
+                window.postMessage('sirius-google-signin-wakeup', '*');
+            }
+        } catch (_error) {
+            // Ignore postMessage errors - this is just a nudge.
+        }
+
+        // Yield twice: once to flush microtasks, once to drain the macrotask queue.
+        Promise.resolve().then(() => {
+            setTimeout(resolve, 0);
+        });
+    });
+}
+
 async function signInWithRecoveredNativeGoogle(nativeResult) {
     if (!nativeResult?.idToken) {
         console.error('[Sirius Google] Native sign-in basarili ama idToken yok', nativeResult);
@@ -497,6 +522,11 @@ async function signInWithRecoveredNativeGoogle(nativeResult) {
         nativeResult.idToken,
         nativeResult.accessToken || null
     );
+
+    // Wake the JS run loop before the credential exchange so the
+    // signInWithCredential promise can resolve without waiting for a
+    // user tap on iOS.
+    await wakeUpWebViewEventLoop();
 
     try {
         const result = await withNativeGoogleTimeout(signInWithCredential(auth, credential), 30000);

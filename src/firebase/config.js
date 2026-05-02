@@ -1,6 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { getToken, initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
-import { getAuth } from 'firebase/auth';
+import {
+    getAuth,
+    initializeAuth,
+    indexedDBLocalPersistence,
+    browserLocalPersistence,
+    inMemoryPersistence,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
 
@@ -17,10 +23,47 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+
+const isNativePlatform = Capacitor.isNativePlatform();
+
+// CRITICAL FIX for Capacitor iOS Google Sign-In:
+// On native (Capacitor WKWebView), the default getAuth() resolves to
+// in-memory persistence, which causes signInWithCredential() to hang
+// for ~50 seconds (or until the user taps the screen) after a native
+// Google Sign-In flow returns. The Firebase JS SDK requires that
+// initializeAuth be called BEFORE any other Firebase Auth call when
+// running in a non-browser environment. Switching to
+// indexedDBLocalPersistence (with localStorage and memory as fallbacks)
+// eliminates the hang and lets the credential exchange resolve
+// immediately.
+//
+// Refs:
+//   https://github.com/firebase/firebase-js-sdk/issues/2700
+//   https://github.com/capawesome-team/capacitor-firebase/blob/main/packages/authentication/docs/firebase-js-sdk.md
+let auth;
+
+if (isNativePlatform) {
+    try {
+        auth = initializeAuth(app, {
+            persistence: [
+                indexedDBLocalPersistence,
+                browserLocalPersistence,
+                inMemoryPersistence,
+            ],
+        });
+    } catch (error) {
+        // initializeAuth throws if it has already been called for this
+        // FirebaseApp (can happen with HMR / fast refresh). Fall back to
+        // getAuth so the existing instance is reused.
+        console.warn('initializeAuth fell back to getAuth:', error?.message);
+        auth = getAuth(app);
+    }
+} else {
+    auth = getAuth(app);
+}
+
 const db = getFirestore(app);
 const appCheckSiteKey = import.meta.env.VITE_FIREBASE_APPCHECK_SITE_KEY;
-const isNativePlatform = Capacitor.isNativePlatform();
 
 let appCheck = null;
 let appCheckWarmupPromise = null;
