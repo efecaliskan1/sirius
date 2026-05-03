@@ -42,8 +42,8 @@
   --color-sidebar: #FAF6ED;
   --color-focus-bg: #1A1A1A;
   --color-focus-surface: #2A2825;
-  --font-sans: 'Inter', 'SF Pro Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-display: 'Archivo Black', 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  --font-sans: 'Inter', 'SF Pro Text', 'Segoe UI', system-ui, -apple-system, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+  --font-display: 'Archivo Black', 'Inter', 'SF Pro Display', system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
 
   /* Brutalist defaults — overridden per theme via [data-theme] in
      AppLayout.jsx. These are the calm-theme defaults so the design
@@ -57,11 +57,11 @@
   --bb-shadow-x-lg: 6px;
   --bb-shadow-y-lg: 6px;
   --bb-border-w: 2.5px;
-  --bb-accent-1: #FCD34D;     /* sticker yellow */
-  --bb-accent-2: #A7E8D2;     /* mint */
-  --bb-accent-3: #A8D4F0;     /* sky */
-  --bb-accent-4: #F8A4C1;     /* peach pink */
-  --bb-accent-5: #F87171;     /* coral */
+  --bb-accent-1: #FCD34D;
+  --bb-accent-2: #A7E8D2;
+  --bb-accent-3: #A8D4F0;
+  --bb-accent-4: #F8A4C1;
+  --bb-accent-5: #F87171;
 }
 
 @layer base {
@@ -265,7 +265,6 @@
     text-transform: uppercase;
   }
 
-  /* Sticker - rotated badge for callouts */
   .sticker {
     display: inline-flex;
     align-items: center;
@@ -435,7 +434,6 @@
   }
 
   /* ─────────────  DISPLAY HEADING  ───────────── */
-  /* Use this for big, brutalist page titles */
   .display-heading {
     font-family: var(--font-display);
     font-weight: 900;
@@ -508,7 +506,6 @@
   transform: translate(-2px, -2px);
 }
 
-/* Sidebar */
 [data-theme="dark"] .sidebar-nav-active {
   background: var(--bb-accent-1, #818CF8) !important;
   color: var(--bb-ink, #F5EFE4) !important;
@@ -523,14 +520,12 @@
   background: rgba(245, 239, 228, 0.08);
 }
 
-/* Empty state cards */
 [data-theme="dark"] .empty-state-card {
   background: rgba(245, 239, 228, 0.04);
   border: 2px dashed rgba(245, 239, 228, 0.4);
   border-radius: 14px;
 }
 
-/* Modal overlay & content */
 [data-theme="dark"] .modal-overlay {
   background: rgba(0, 0, 0, 0.65);
 }
@@ -540,12 +535,10 @@
   box-shadow: 6px 6px 0 var(--bb-shadow, #818CF8);
 }
 
-/* Scrollbars */
 [data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: var(--bb-ink, rgba(245, 239, 228, 0.4));
 }
 
-/* Buttons in dark */
 [data-theme="dark"] .btn-ghost:hover {
   background: rgba(245, 239, 228, 0.06);
   border-color: var(--bb-ink, #F5EFE4);
@@ -572,7 +565,6 @@
   box-shadow: 3px 3px 0 var(--bb-shadow, #818CF8);
 }
 
-/* Stats cards on dark */
 [data-theme="dark"] .overview-stat-card {
   background: var(--bb-card, #1E293B) !important;
   border: var(--bb-border-w) solid var(--bb-ink, #F5EFE4) !important;
@@ -585,25 +577,21 @@
   border: 2px solid var(--bb-ink, #F5EFE4);
 }
 
-/* Quick Focus CTA */
 [data-theme="dark"] .quick-focus-card {
   box-shadow: var(--bb-shadow-x) var(--bb-shadow-y) 0 var(--bb-shadow, #818CF8);
 }
 
-/* Reward & motivation cards */
 [data-theme="dark"] .reward-level-card,
 [data-theme="dark"] .motivation-card-dark {
   background: var(--bb-card, rgba(99, 102, 241, 0.08)) !important;
   border: var(--bb-border-w) solid var(--bb-ink, #F5EFE4) !important;
 }
 
-/* Streak protection */
 [data-theme="dark"] .streak-protect-btn {
   background: var(--bb-accent-1, rgba(251, 146, 60, 0.08)) !important;
   border-color: var(--bb-ink, #F5EFE4) !important;
 }
 
-/* Theme picker */
 [data-theme="dark"] .theme-picker-popup {
   background: var(--bb-card, #1E293B) !important;
   border: var(--bb-border-w) solid var(--bb-ink, #F5EFE4) !important;
@@ -623,13 +611,11 @@
   border: 2px solid var(--bb-ink, #F5EFE4);
 }
 
-/* Sub cards */
 [data-theme="dark"] .dark-sub-card {
   background: var(--bb-card, rgba(245, 239, 228, 0.04)) !important;
   border: 2px solid var(--bb-ink, #F5EFE4) !important;
 }
 
-/* Weekly Goal bar */
 [data-theme="dark"] .weekly-goal-bar {
   background: var(--bb-card, rgba(245, 239, 228, 0.06));
   border: 2px solid var(--bb-ink, #F5EFE4);
