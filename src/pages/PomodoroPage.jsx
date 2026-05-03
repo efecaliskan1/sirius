@@ -1568,10 +1568,11 @@ export default function PomodoroPage() {
                                                     </div>
                                                 </div>
                                                 <div
-                                                    className="rounded-[28px] p-4"
+                                                    className="rounded-[20px] p-4"
                                                     style={{
-                                                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(241,245,249,1)'}`,
-                                                        background: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
+                                                        border: '2.5px solid var(--bb-ink)',
+                                                        background: 'var(--bb-card)',
+                                                        boxShadow: '3px 3px 0 var(--bb-shadow)',
                                                     }}
                                                 >
                                                     <div className="space-y-3">
@@ -1614,23 +1615,29 @@ export default function PomodoroPage() {
                                                 </div>
 
                                                 <div className="grid gap-3 sm:grid-cols-2">
-                                                    {heroStats.map((stat) => (
-                                                        <div
-                                                            key={stat.label}
-                                                            className="rounded-[22px] px-4 py-3 shadow-sm"
-                                                            style={{
-                                                                border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(241,245,249,1)'}`,
-                                                                background: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
-                                                            }}
-                                                        >
-                                                            <div className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--theme-text-muted, #94a3b8)' }}>
-                                                                {stat.label}
+                                                    {heroStats.map((stat, i) => {
+                                                        const accents = ['var(--bb-accent-2)', 'var(--bb-accent-3)', 'var(--bb-accent-4)', 'var(--bb-accent-1)'];
+                                                        const bg = accents[i % accents.length];
+                                                        return (
+                                                            <div
+                                                                key={stat.label}
+                                                                className="px-4 py-3"
+                                                                style={{
+                                                                    borderRadius: '16px',
+                                                                    border: '2.5px solid var(--bb-ink)',
+                                                                    background: bg,
+                                                                    boxShadow: '3px 3px 0 var(--bb-shadow)',
+                                                                }}
+                                                            >
+                                                                <div className="text-[10px] font-extrabold uppercase tracking-[0.16em]" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                                                    {stat.label}
+                                                                </div>
+                                                                <div className="mt-1.5 text-2xl font-extrabold tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                                                    {stat.value}
+                                                                </div>
                                                             </div>
-                                                            <div className="mt-2 text-xl font-semibold tracking-tight" style={{ color: 'var(--theme-text, #0f172a)' }}>
-                                                                {stat.value}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         </div>
@@ -1638,40 +1645,56 @@ export default function PomodoroPage() {
                                         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                             <button
                                                 onClick={isRunning ? handlePause : handleStartOrResume}
-                                                className="rounded-2xl px-4 py-3 text-sm font-semibold text-white"
-                                                style={{ background: isDark ? 'rgba(99,102,241,0.88)' : isBarbie ? 'linear-gradient(135deg, #E11D74 0%, #EC4899 100%)' : '#0f172a' }}
+                                                className="px-4 py-3 text-sm font-extrabold uppercase tracking-wider"
+                                                style={{
+                                                    borderRadius: '14px',
+                                                    border: '2.5px solid var(--bb-ink)',
+                                                    background: 'var(--bb-accent-1)',
+                                                    color: 'var(--bb-ink)',
+                                                    boxShadow: '3px 3px 0 var(--bb-shadow)',
+                                                    cursor: 'pointer',
+                                                }}
                                             >
                                                 {isRunning ? copy.pause : copy.start}
                                             </button>
                                             <button
                                                 onClick={resetTimer}
-                                                className="rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors"
+                                                className="px-4 py-3 text-sm font-extrabold uppercase tracking-wider"
                                                 style={{
-                                                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(226,232,240,1)',
-                                                    background: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
-                                                    color: isDark ? 'rgba(226,232,240,0.78)' : isBarbie ? '#A61B64' : '#475569',
+                                                    borderRadius: '14px',
+                                                    border: '2.5px solid var(--bb-ink)',
+                                                    background: 'var(--bb-card)',
+                                                    color: 'var(--bb-ink)',
+                                                    boxShadow: '3px 3px 0 var(--bb-shadow)',
+                                                    cursor: 'pointer',
                                                 }}
                                             >
                                                 {copy.reset}
                                             </button>
                                             <button
                                                 onClick={handleSkip}
-                                                className="rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors"
+                                                className="px-4 py-3 text-sm font-extrabold uppercase tracking-wider"
                                                 style={{
-                                                    borderColor: isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(226,232,240,1)',
-                                                    background: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
-                                                    color: isDark ? 'rgba(226,232,240,0.78)' : isBarbie ? '#A61B64' : '#475569',
+                                                    borderRadius: '14px',
+                                                    border: '2.5px solid var(--bb-ink)',
+                                                    background: 'var(--bb-card)',
+                                                    color: 'var(--bb-ink)',
+                                                    boxShadow: '3px 3px 0 var(--bb-shadow)',
+                                                    cursor: 'pointer',
                                                 }}
                                             >
                                                 {copy.skip}
                                             </button>
                                             <button
                                                 onClick={() => setExperienceMode('deep')}
-                                                className="rounded-2xl border px-4 py-3 text-sm font-semibold transition-colors"
+                                                className="px-4 py-3 text-sm font-extrabold uppercase tracking-wider"
                                                 style={{
-                                                    borderColor: isDark ? 'rgba(56,189,248,0.22)' : isBarbie ? 'rgba(225,29,114,0.18)' : 'rgba(186,230,253,1)',
-                                                    background: isDark ? 'rgba(14,165,233,0.12)' : isBarbie ? 'rgba(253,242,248,0.92)' : 'rgba(240,249,255,1)',
-                                                    color: isDark ? '#bae6fd' : isBarbie ? '#BE185D' : '#0369a1',
+                                                    borderRadius: '14px',
+                                                    border: '2.5px solid var(--bb-ink)',
+                                                    background: 'var(--bb-accent-3)',
+                                                    color: 'var(--bb-ink)',
+                                                    boxShadow: '3px 3px 0 var(--bb-shadow)',
+                                                    cursor: 'pointer',
                                                 }}
                                             >
                                                 {copy.deepFocus}
