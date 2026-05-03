@@ -488,6 +488,191 @@ export default function HomePage() {
                 </div>
             )}
 
+            {/* ============ DESKTOP-ONLY EXTRA WIDGETS ============ */}
+            <div className="hidden lg:grid mt-6 grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] gap-5">
+
+                {/* LEFT COLUMN — Today's Schedule + Daily Reflection */}
+                <div className="space-y-5">
+
+                    {isWidgetEnabled('schedule-preview') && (
+                        <div className="card">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.todaySchedule}
+                                </h2>
+                                <Link
+                                    to="/schedule"
+                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
+                                    style={{ color: 'var(--bb-ink)' }}
+                                >
+                                    {copy.viewSchedule} →
+                                </Link>
+                            </div>
+                            {todaySchedule.length === 0 ? (
+                                <div
+                                    className="text-center py-7 px-4"
+                                    style={{
+                                        borderRadius: '14px',
+                                        border: '2.5px dashed var(--bb-ink)',
+                                        background: 'var(--bb-paper)',
+                                    }}
+                                >
+                                    <p className="text-[13px] font-bold" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                        {copy.noSchedule}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3 grid-cols-2">
+                                    {todaySchedule.slice(0, 4).map((entry) => {
+                                        const course = getCourse(entry.courseId);
+                                        return (
+                                            <div
+                                                key={entry.id}
+                                                className="flex items-center gap-3 py-2.5 px-3"
+                                                style={{
+                                                    borderRadius: '12px',
+                                                    border: '2px solid var(--bb-ink)',
+                                                    background: 'var(--bb-paper)',
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        width: '6px',
+                                                        height: '36px',
+                                                        borderRadius: '3px',
+                                                        flexShrink: 0,
+                                                        background: course?.color || 'var(--bb-ink)',
+                                                        border: '1.5px solid var(--bb-ink)',
+                                                    }}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-[13px] font-extrabold truncate" style={{ color: 'var(--bb-ink)' }}>
+                                                        {course?.courseName || copy.viewCourseFallback}
+                                                    </div>
+                                                    <div className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--bb-ink)', opacity: 0.6 }}>
+                                                        {formatTime24(entry.startTime)} – {formatTime24(entry.endTime)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {todaySessions.length > 0 && !user?.dailyReflections?.[today] && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="card"
+                            style={{ background: 'var(--bb-accent-3)' }}
+                        >
+                            <h3 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                {copy.dailyReflection}
+                            </h3>
+                            <p className="text-[12px] font-medium mt-1 mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                {copy.dailyReflectionPrompt}
+                            </p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {[
+                                    { label: copy.productive, emoji: '🙂', value: 'productive' },
+                                    { label: copy.average, emoji: '😐', value: 'average' },
+                                    { label: copy.lowFocus, emoji: '😴', value: 'low focus' },
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => handleReflection(opt.value)}
+                                        className="btn-secondary justify-center"
+                                        style={{ flexDirection: 'column', padding: '0.625rem', fontSize: '11px' }}
+                                    >
+                                        <span className="text-[18px]" style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji",emoji' }}>{opt.emoji}</span>
+                                        <span className="font-bold uppercase tracking-wider mt-1">{opt.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
+                </div>
+
+                {/* RIGHT COLUMN — Weekly Goal + Sky + Quote */}
+                <div className="space-y-5">
+
+                    {isWidgetEnabled('weekly-goal') && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="card card-interactive"
+                            style={{ background: 'var(--bb-accent-2)' }}
+                            onClick={() => { setGoalInput(Math.round(weeklyGoal / 60).toString()); setShowGoalModal(true); }}
+                        >
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.weeklyGoal}
+                                </h3>
+                                <span className="badge" style={{ background: 'var(--bb-card)' }}>
+                                    {Math.round(weeklyProgress)}%
+                                </span>
+                            </div>
+                            <p className="text-[24px] font-extrabold leading-none mb-1" style={{ color: 'var(--bb-ink)' }}>
+                                {Math.floor(weeklyMinutes / 60)}h {weeklyMinutes % 60}m
+                            </p>
+                            <p className="text-[11px] font-bold mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                / {Math.floor(weeklyGoal / 60)}h {copy.goalSuffix}
+                            </p>
+                            <div style={{ height: '12px', borderRadius: '8px', background: 'var(--bb-card)', border: '2px solid var(--bb-ink)', overflow: 'hidden' }}>
+                                <motion.div
+                                    style={{ height: '100%', background: 'var(--bb-ink)' }}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${weeklyProgress}%` }}
+                                    transition={{ duration: 1, delay: 0.3 }}
+                                />
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {isWidgetEnabled('streak-status') && (
+                        <div className="card">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                                    {copy.yourSky}
+                                </h3>
+                                <Link
+                                    to="/rewards"
+                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
+                                    style={{ color: 'var(--bb-ink)' }}
+                                >
+                                    {copy.details} →
+                                </Link>
+                            </div>
+                            <YourSkyScene
+                                compact
+                                sessionsCompleted={stats.totalSessions}
+                                streak={user?.streakCount || 0}
+                                totalMinutes={stats.totalMinutes}
+                            />
+                        </div>
+                    )}
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="card"
+                        style={{ background: 'var(--bb-paper)' }}
+                    >
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--bb-ink)', opacity: 0.55 }}>
+                            {copy.quoteOfTheDay}
+                        </p>
+                        <p className="text-[14px] font-medium italic leading-relaxed" style={{ color: 'var(--bb-ink)' }}>
+                            "{localizedQuoteText}"
+                        </p>
+                        <p className="text-[11px] font-bold uppercase tracking-wider mt-2" style={{ color: 'var(--bb-ink)', opacity: 0.6 }}>
+                            — {dailyQuote.author}
+                        </p>
+                    </motion.div>
+                </div>
+            </div>
+
             {/* ============ MODALS ============ */}
             <Modal isOpen={showGoalModal} onClose={() => setShowGoalModal(false)} title={copy.weeklyStudyGoal}>
                 <div className="space-y-4">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import BottomTabBar from '../components/Layout/BottomTabBar';
+import Sidebar from '../components/Layout/Sidebar';
 import Toast from '../components/UI/Toast';
 import AudioEngine from '../components/UI/AudioEngine';
 import FocusOverlay from '../components/UI/FocusOverlay';
@@ -227,9 +228,12 @@ export default function AppLayout() {
             <AudioEngine />
             <FocusOverlay />
 
-            {/* Top bar — sade brutalist, page title + locale + settings */}
+            {/* Desktop sidebar (hidden on mobile via component) */}
+            <Sidebar />
+
+            {/* Mobile-only top bar */}
             <header
-                className="sticky top-0 z-20 px-4 py-3"
+                className="lg:hidden sticky top-0 z-20 px-4 py-3"
                 style={{
                     background: 'var(--bb-paper)',
                     borderBottom: '2px solid var(--bb-ink)',
@@ -342,19 +346,23 @@ export default function AppLayout() {
                 </div>
             </header>
 
-            {/* Main content area, padded for the bottom tab bar */}
+            {/* Main content area, padded for the bottom tab bar (mobile)
+                and for the sidebar (desktop) */}
             <main
-                className="px-4 pt-4"
+                className="px-4 pt-4 lg:pt-8 lg:pl-[256px] lg:pr-8"
                 style={{
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 110px)',
                 }}
             >
-                <div className="mx-auto w-full max-w-[1400px]">
+                <div className="mx-auto w-full max-w-[1400px] lg:pb-12">
                     <Outlet />
                 </div>
             </main>
 
-            <BottomTabBar />
+            {/* Mobile-only bottom tab bar */}
+            <div className="lg:hidden">
+                <BottomTabBar />
+            </div>
             <Toast />
         </div>
     );
