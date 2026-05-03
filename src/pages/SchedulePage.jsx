@@ -156,38 +156,14 @@ export default function SchedulePage() {
     const themeKey = user?.theme || 'calm';
     const isDark = themeKey === 'dark';
     const isBarbie = themeKey === 'barbie';
-    const titleColor = 'var(--theme-text, #1e293b)';
-    const mutedColor = 'var(--theme-text-muted, #64748b)';
-    const tableBorderColor = isDark
-        ? 'rgba(71,85,105,0.42)'
-        : isBarbie
-            ? 'rgba(225,29,114,0.14)'
-            : 'rgba(226,232,240,0.9)';
-    const tableHeaderBg = isDark
-        ? 'rgba(20,28,47,0.98)'
-        : isBarbie
-            ? 'rgba(255,241,247,0.96)'
-            : 'rgba(248,250,252,0.96)';
-    const tableTimeBg = isDark
-        ? 'rgba(11,18,32,0.98)'
-        : isBarbie
-            ? 'rgba(255,247,251,0.94)'
-            : 'rgba(248,250,252,0.86)';
-    const dayCellBg = isDark
-        ? 'rgba(15,23,42,0.52)'
-        : isBarbie
-            ? 'rgba(255,250,252,0.78)'
-            : 'rgba(248,250,252,0.74)';
-    const todayCellBg = isDark
-        ? 'rgba(15,23,42,0.52)'
-        : isBarbie
-            ? 'rgba(255,250,252,0.78)'
-            : 'rgba(248,250,252,0.74)';
-    const todayBadgeShadow = isDark
-        ? '0 8px 18px rgba(99,102,241,0.24)'
-        : isBarbie
-            ? '0 10px 24px rgba(225,29,114,0.22)'
-            : '0 10px 24px rgba(79,110,247,0.18)';
+    const titleColor = 'var(--bb-ink)';
+    const mutedColor = 'var(--bb-ink)';
+    const tableBorderColor = 'var(--bb-ink)';
+    const tableHeaderBg = 'var(--bb-accent-1)';
+    const tableTimeBg = 'var(--bb-paper)';
+    const dayCellBg = 'var(--bb-card)';
+    const todayCellBg = 'var(--bb-accent-2)';
+    const todayBadgeShadow = '2px 2px 0 var(--bb-shadow)';
     const [form, setForm] = useState({
         courseId: '',
         date: '',

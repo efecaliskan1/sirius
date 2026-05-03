@@ -115,13 +115,11 @@ export default function CoursesPage() {
         <div className="w-full max-w-[1440px] space-y-8">
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
                 <div
-                    className={`overflow-hidden rounded-[32px] border px-6 py-7 sm:px-8 sm:py-8 ${isDark ? 'border-indigo-500/15' : 'border-slate-200/70'}`}
+                    className="overflow-hidden rounded-[20px] px-6 py-7 sm:px-8 sm:py-8"
                     style={{
-                        background: isDark
-                            ? 'radial-gradient(circle at top right, rgba(129, 140, 248, 0.18), rgba(15, 23, 42, 0.9) 46%)'
-                            : isBarbie
-                                ? 'linear-gradient(135deg, rgba(255, 247, 251, 1) 0%, rgba(249, 168, 212, 0.22) 100%)'
-                                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(238, 242, 255, 0.82) 100%)',
+                        background: 'var(--bb-card)',
+                        border: 'var(--bb-border-w) solid var(--bb-ink)',
+                        boxShadow: '5px 5px 0 var(--bb-shadow)',
                     }}
                 >
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">

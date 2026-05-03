@@ -129,40 +129,14 @@ export default function StatsPage() {
         { label: copy.statLabels.bestDay, value: bestDay.minutes > 0 ? formatDateWithOptions(bestDay.date, { weekday: 'short' }, locale) : '-', icon: '🌟', accent: '#F59E0B' },
         { label: copy.statLabels.currentStreak, value: `${user?.streakCount || 0}d`, icon: '🔥', accent: '#EF4444' },
     ];
-    const statCardBackground = isDark
-        ? 'linear-gradient(180deg, rgba(21,30,49,0.98), rgba(10,17,31,0.98))'
-        : isBarbie
-            ? 'linear-gradient(180deg, #fff8fc 0%, #fff1f7 100%)'
-            : 'var(--theme-surface-card, #ffffff)';
-    const statCardBorder = isDark
-        ? 'rgba(99,102,241,0.16)'
-        : isBarbie
-            ? 'rgba(225,29,114,0.14)'
-            : 'var(--theme-border-light, #eef2ff)';
-    const statCardShadow = isDark
-        ? '0 18px 32px rgba(2,6,23,0.26)'
-        : isBarbie
-            ? '0 18px 32px rgba(225,29,114,0.12)'
-            : '0 12px 24px rgba(79,110,247,0.08)';
-    const timelineCardBackground = isDark
-        ? 'linear-gradient(180deg, rgba(18,28,46,0.98), rgba(9,15,29,0.98))'
-        : 'var(--theme-surface-card, #ffffff)';
-    const timelineCardBorder = isDark
-        ? 'rgba(99,102,241,0.22)'
-        : 'var(--theme-border-light, #eef2ff)';
-    const timelineNoteBackground = isDark
-        ? 'rgba(30,41,59,0.46)'
-        : 'var(--theme-surface, #f8fafc)';
-    const timelineNoteBorder = isDark
-        ? 'rgba(99,102,241,0.14)'
-        : 'var(--theme-border-light, #eef2ff)';
-    const elevatedDarkCardStyle = isDark
-        ? {
-            background: 'linear-gradient(180deg, rgba(18,28,46,0.98), rgba(9,15,29,0.98))',
-            borderColor: 'rgba(99,102,241,0.16)',
-            boxShadow: '0 18px 36px rgba(2,6,23,0.30)',
-        }
-        : undefined;
+    const statCardBackground = 'var(--bb-card)';
+    const statCardBorder = 'var(--bb-ink)';
+    const statCardShadow = '4px 4px 0 var(--bb-shadow)';
+    const timelineCardBackground = 'var(--bb-card)';
+    const timelineCardBorder = 'var(--bb-ink)';
+    const timelineNoteBackground = 'var(--bb-paper)';
+    const timelineNoteBorder = 'var(--bb-ink)';
+    const elevatedDarkCardStyle = undefined;
 
     // Group heatmap into weeks
     const heatmapWeeks = [];
@@ -194,24 +168,24 @@ export default function StatsPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.06 }}
-                        className="rounded-2xl border p-4"
+                        className="rounded-2xl p-4"
                         style={{
                             background: statCardBackground,
-                            borderColor: statCardBorder,
+                            border: `var(--bb-border-w) solid ${statCardBorder}`,
                             boxShadow: statCardShadow,
                         }}
                     >
                         <div
-                            className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-lg"
+                            className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl text-lg"
                             style={{
-                                backgroundColor: `${card.accent}${isDark ? '24' : '18'}`,
-                                boxShadow: `0 10px 20px ${card.accent}${isDark ? '26' : '12'}`,
+                                backgroundColor: `${card.accent}30`,
+                                border: '2px solid var(--bb-ink)',
                             }}
                         >
                             {card.icon}
                         </div>
-                        <div className="text-xl font-bold" style={{ color: 'var(--theme-text, #1e293b)' }}>{card.value}</div>
-                        <div className="text-[11px] mt-0.5" style={{ color: 'var(--theme-text-muted, #94a3b8)' }}>{card.label}</div>
+                        <div className="text-xl font-extrabold" style={{ color: 'var(--bb-ink)' }}>{card.value}</div>
+                        <div className="text-[11px] font-bold uppercase tracking-wider mt-0.5" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>{card.label}</div>
                     </motion.div>
                 ))}
             </div>

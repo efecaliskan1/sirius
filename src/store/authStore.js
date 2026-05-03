@@ -1210,9 +1210,26 @@ const useAuthStore = create((set, get) => ({
         saveAuthToLocal(updatedUser);
 
         if (auth.currentUser) {
-            await ensureFirestoreReady();
-            await updateDoc(doc(db, 'users', currentUser.id), sanitizedUpdates);
-            await get().syncPublicProfile(updatedUser);
+            try {
+                await ensureFirestoreReady();
+                await updateDoc(doc(db, 'users', currentUser.id), sanitizedUpdates);
+                await get().syncPublicProfile(updatedUser);
+            } catch (error) {
+                // Firestore rejected the write — most commonly because the
+                // deployed security rules don't yet match the latest
+                // firestore.rules in the repo (e.g. profilePhoto size limit
+                // hasn't been deployed). Roll the in-memory state back so
+                // the UI doesn't lie, and surface a console error the user
+                // can read in DevTools.
+                console.error(
+                    '[Sirius] updateUser Firestore write failed:',
+                    error?.code || error?.message || error,
+                    '\nIf you just changed firestore.rules, run:  firebase deploy --only firestore:rules'
+                );
+                set({ user: currentUser });
+                saveAuthToLocal(currentUser);
+                throw error;
+            }
 
             if (Object.prototype.hasOwnProperty.call(sanitizedUpdates, 'publicProfileEnabled')) {
                 if (sanitizedUpdates.publicProfileEnabled) {

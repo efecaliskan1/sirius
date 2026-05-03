@@ -1340,26 +1340,39 @@ export default function PomodoroPage() {
                     >
                         <div className="mb-6 flex justify-end">
                             <div
-                                className="inline-flex rounded-full p-1.5 shadow-sm"
+                                className="inline-flex p-1 gap-1"
                                 style={{
-                                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.18)' : 'rgba(226,232,240,1)'}`,
-                                    background: isDark ? 'rgba(15,23,42,0.72)' : isBarbie ? 'rgba(255, 244, 250, 0.92)' : 'rgba(255,255,255,0.8)',
+                                    borderRadius: '999px',
+                                    border: '2.5px solid var(--bb-ink)',
+                                    background: 'var(--bb-card)',
+                                    boxShadow: '3px 3px 0 var(--bb-shadow)',
                                 }}
                             >
                                 <button
                                     onClick={() => setExperienceMode('normal')}
-                                    className="rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm"
+                                    className="px-5 py-2 text-xs font-extrabold uppercase tracking-wider"
                                     style={{
-                                        background: isDark ? 'rgba(99,102,241,0.88)' : isBarbie ? 'linear-gradient(135deg, #E11D74 0%, #EC4899 100%)' : '#0f172a',
-                                        color: '#ffffff',
+                                        borderRadius: '999px',
+                                        border: '2px solid var(--bb-ink)',
+                                        background: 'var(--bb-accent-1)',
+                                        color: 'var(--bb-ink)',
+                                        boxShadow: '2px 2px 0 var(--bb-shadow)',
+                                        cursor: 'pointer',
                                     }}
                                 >
                                     {copy.normalMode}
                                 </button>
                                 <button
                                     onClick={() => setExperienceMode('deep')}
-                                    className="rounded-full px-5 py-2.5 text-sm font-semibold transition-colors"
-                                    style={{ color: isDark ? 'rgba(226,232,240,0.7)' : isBarbie ? '#A61B64' : '#64748b' }}
+                                    className="px-5 py-2 text-xs font-extrabold uppercase tracking-wider"
+                                    style={{
+                                        borderRadius: '999px',
+                                        border: '2px solid transparent',
+                                        background: 'transparent',
+                                        color: 'var(--bb-ink)',
+                                        opacity: 0.7,
+                                        cursor: 'pointer',
+                                    }}
                                 >
                                     {copy.deepFocusMode}
                                 </button>
