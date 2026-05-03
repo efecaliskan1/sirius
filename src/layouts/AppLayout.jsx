@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from '../components/Layout/Sidebar';
+import BottomTabBar from '../components/Layout/BottomTabBar';
 import Toast from '../components/UI/Toast';
 import AudioEngine from '../components/UI/AudioEngine';
 import FocusOverlay from '../components/UI/FocusOverlay';
@@ -67,6 +67,10 @@ function getScheduleEntryLabel(entry, courses, copy) {
     return copy.blockTypes[entry.blockType] || copy.eventFallback;
 }
 
+// Theme picker has been removed; the app now uses the single 'calm'
+// brutalist theme.
+const FORCED_THEME = 'calm';
+
 export default function AppLayout() {
     const user = useAuthStore((s) => s.user);
     const courses = useAppStore((s) => s.courses);
@@ -74,10 +78,8 @@ export default function AppLayout() {
     const flushCloudStudySync = useAppStore((s) => s.flushCloudStudySync);
     const safeCourses = Array.isArray(courses) ? courses : [];
     const safeScheduleEntries = Array.isArray(scheduleEntries) ? scheduleEntries : [];
-    const themeKey = user?.theme || 'calm';
     const locale = useLocale();
     const scheduleCopy = SCHEDULE_NOTIFICATION_COPY[locale] || SCHEDULE_NOTIFICATION_COPY.en;
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showLocaleMenu, setShowLocaleMenu] = useState(false);
     const location = useLocation();
     const supportsPageSettings = location.pathname === '/';
@@ -94,12 +96,11 @@ export default function AppLayout() {
         return 'Sirius';
     }, [locale, location.pathname]);
 
-    // Apply theme CSS variables + data-theme attribute
+    // Apply the forced calm theme on mount.
     useEffect(() => {
-        const theme = THEMES.find((t) => t.key === themeKey);
+        const theme = THEMES.find((t) => t.key === FORCED_THEME);
         const root = document.documentElement;
-        // Set data-theme for CSS selector targeting
-        root.setAttribute('data-theme', themeKey);
+        root.setAttribute('data-theme', FORCED_THEME);
         if (theme) {
             const varMap = {
                 '--color-surface': '--theme-surface',
@@ -122,9 +123,14 @@ export default function AppLayout() {
                 if (key === '--sidebar-bg' || key === '--sidebar-border') {
                     root.style.setProperty(key, value);
                 }
+                // All --bb-* tokens flow through directly so brutalist
+                // styles in index.css pick them up automatically.
+                if (key.startsWith('--bb-')) {
+                    root.style.setProperty(key, value);
+                }
             });
         }
-    }, [themeKey]);
+    }, []);
 
     useEffect(() => {
         if (!user?.id || !isBrowserNotificationSupported() || Notification.permission !== 'granted') {
@@ -210,191 +216,145 @@ export default function AppLayout() {
     };
 
     const settingsCopy = locale === 'tr'
-        ? {
-            settings: 'Ayarlar',
-            language: 'Dil',
-          }
-        : {
-            settings: 'Settings',
-            language: 'Language',
-          };
+        ? { settings: 'Ayarlar', language: 'Dil' }
+        : { settings: 'Settings', language: 'Language' };
 
     return (
-        <div className="relative min-h-screen transition-colors duration-300" style={{ backgroundColor: 'var(--theme-surface, #F8FAFC)' }}>
+        <div
+            className="relative min-h-screen"
+            style={{ backgroundColor: 'var(--bb-paper)' }}
+        >
             <AudioEngine />
             <FocusOverlay />
-            <div className="hidden lg:block">
-                <Sidebar />
-            </div>
-            <button
-                type="button"
-                aria-label={locale === 'tr' ? 'Navigasyonu aç' : 'Open navigation'}
-                onClick={() => setIsSidebarOpen(true)}
-                className="fixed left-4 top-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-white/90 text-slate-700 shadow-lg backdrop-blur lg:hidden"
+
+            {/* Top bar — sade brutalist, page title + locale + settings */}
+            <header
+                className="sticky top-0 z-20 px-4 py-3"
                 style={{
-                    borderColor: 'var(--theme-border-light, #E2E8F0)',
-                    background: themeKey === 'dark' ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255,255,255,0.92)',
-                    color: 'var(--theme-text, #111827)',
+                    background: 'var(--bb-paper)',
+                    borderBottom: '2px solid var(--bb-ink)',
                 }}
             >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round">
-                    <line x1="4" y1="7" x2="20" y2="7" />
-                    <line x1="4" y1="12" x2="20" y2="12" />
-                    <line x1="4" y1="17" x2="20" y2="17" />
-                </svg>
-            </button>
-            <div className={`fixed inset-0 z-40 bg-slate-950/45 transition-opacity lg:hidden ${isSidebarOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} onClick={() => setIsSidebarOpen(false)} />
-            <Sidebar mobile isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-            <div className="flex min-h-screen flex-col lg:pl-[240px]">
-                <header className="sticky top-0 z-20 border-b px-4 py-4 backdrop-blur lg:hidden" style={{
-                    borderColor: 'var(--theme-border-light, #E2E8F0)',
-                    background: themeKey === 'dark' ? 'rgba(15, 23, 42, 0.78)' : 'rgba(248, 250, 252, 0.82)',
-                }}>
-                    <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3 pl-14">
-                        <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.24em]" style={{ color: 'var(--theme-primary, #4F46E5)' }}>
-                                Sirius
-                            </p>
-                            <h1 className="mt-1 text-base font-bold" style={{ color: 'var(--theme-text, #111827)' }}>
-                                {mobileTitle}
-                            </h1>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        setShowLocaleMenu((open) => !open);
-                                    }}
-                                    className="rounded-full px-3 py-1 text-[11px] font-semibold"
+                <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3">
+                    <div>
+                        <p
+                            className="text-[9px] font-bold uppercase tracking-[0.24em]"
+                            style={{ color: 'var(--bb-ink)', opacity: 0.55 }}
+                        >
+                            Sirius
+                        </p>
+                        <h1
+                            className="display-heading text-[18px] mt-0.5"
+                            style={{ color: 'var(--bb-ink)' }}
+                        >
+                            {mobileTitle}
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setShowLocaleMenu((open) => !open);
+                                }}
+                                className="text-[11px] font-bold uppercase tracking-wider"
+                                style={{
+                                    border: '2px solid var(--bb-ink)',
+                                    borderRadius: '999px',
+                                    background: 'var(--bb-card)',
+                                    color: 'var(--bb-ink)',
+                                    padding: '5px 12px',
+                                    boxShadow: '2px 2px 0 var(--bb-shadow)',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {locale.toUpperCase()}
+                            </button>
+                            {showLocaleMenu && (
+                                <div
+                                    onClick={(event) => event.stopPropagation()}
+                                    className="absolute right-0 top-full z-30 mt-2"
                                     style={{
-                                        background: 'var(--theme-primary-bg, #EEF2FF)',
-                                        color: 'var(--theme-primary, #4F46E5)',
+                                        width: '160px',
+                                        border: '2.5px solid var(--bb-ink)',
+                                        borderRadius: '14px',
+                                        background: 'var(--bb-card)',
+                                        boxShadow: '4px 4px 0 var(--bb-shadow)',
+                                        padding: '6px',
                                     }}
                                 >
-                                    {locale.toUpperCase()}
-                                </button>
-                                {showLocaleMenu && (
-                                    <div
-                                        onClick={(event) => event.stopPropagation()}
-                                        className="absolute right-0 top-full z-30 mt-2 w-36 rounded-2xl border p-2 shadow-xl"
-                                        style={{
-                                            borderColor: 'var(--theme-border-light, #E2E8F0)',
-                                            background: themeKey === 'dark' ? 'rgba(15,23,42,0.97)' : '#ffffff',
-                                        }}
-                                    >
-                                        {SUPPORTED_LOCALES.map((option) => (
-                                            <button
-                                                key={option.key}
-                                                type="button"
-                                                onClick={() => handleLocaleChange(option.key)}
-                                                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition"
-                                                style={locale === option.key
-                                                    ? { background: 'var(--theme-primary-bg, #EEF2FF)', color: 'var(--theme-primary, #4F46E5)' }
-                                                    : { color: 'var(--theme-text-secondary, #64748B)' }}
-                                            >
-                                                <span>{option.shortLabel}</span>
-                                                <span>{option.label}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                            {supportsPageSettings && (
-                                <button
-                                    type="button"
-                                    onClick={handleOpenPageSettings}
-                                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition"
-                                    style={{
-                                        borderColor: 'var(--theme-border-light, #E2E8F0)',
-                                        background: themeKey === 'dark' ? 'rgba(15,23,42,0.82)' : 'rgba(255,255,255,0.86)',
-                                        color: 'var(--theme-text-secondary, #64748B)',
-                                    }}
-                                >
-                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="opacity-70">
-                                        <path d="M12 3.75v3.4M12 16.85v3.4M4.85 4.85l2.4 2.4M16.75 16.75l2.4 2.4M3.75 12h3.4M16.85 12h3.4M4.85 19.15l2.4-2.4M16.75 7.25l2.4-2.4" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                    {settingsCopy.settings}
-                                </button>
+                                    {SUPPORTED_LOCALES.map((option) => (
+                                        <button
+                                            key={option.key}
+                                            type="button"
+                                            onClick={() => handleLocaleChange(option.key)}
+                                            className="flex w-full items-center justify-between text-[12px] font-bold"
+                                            style={locale === option.key
+                                                ? {
+                                                    background: 'var(--bb-accent-1)',
+                                                    border: '2px solid var(--bb-ink)',
+                                                    borderRadius: '10px',
+                                                    color: 'var(--bb-ink)',
+                                                    padding: '8px 12px',
+                                                    margin: '2px 0',
+                                                }
+                                                : {
+                                                    color: 'var(--bb-ink)',
+                                                    padding: '8px 12px',
+                                                    margin: '2px 0',
+                                                    border: '2px solid transparent',
+                                                    background: 'none',
+                                                    cursor: 'pointer',
+                                                }}
+                                        >
+                                            <span>{option.label}</span>
+                                            <span className="text-[10px] opacity-60">{option.shortLabel}</span>
+                                        </button>
+                                    ))}
+                                </div>
                             )}
                         </div>
+                        {supportsPageSettings && (
+                            <button
+                                type="button"
+                                onClick={handleOpenPageSettings}
+                                aria-label={settingsCopy.settings}
+                                className="inline-flex items-center justify-center"
+                                style={{
+                                    width: '34px',
+                                    height: '34px',
+                                    border: '2px solid var(--bb-ink)',
+                                    borderRadius: '999px',
+                                    background: 'var(--bb-card)',
+                                    color: 'var(--bb-ink)',
+                                    boxShadow: '2px 2px 0 var(--bb-shadow)',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="3" />
+                                    <path d="M12 1v6m0 10v6M4.22 4.22l4.24 4.24m7.07 7.07l4.24 4.24M1 12h6m10 0h6M4.22 19.78l4.24-4.24m7.07-7.07l4.24-4.24" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
-                </header>
+                </div>
+            </header>
 
-                <main className="flex-1 px-4 pb-10 pt-24 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8">
-                    <div className="mx-auto w-full max-w-[1600px]">
-                        <div className="mb-6 hidden items-center justify-end gap-2 lg:flex">
-                            <div className="relative">
-                                <button
-                                    type="button"
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        setShowLocaleMenu((open) => !open);
-                                    }}
-                                    className="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition"
-                                    style={{
-                                        borderColor: 'var(--theme-border-light, #E2E8F0)',
-                                        background: themeKey === 'dark' ? 'rgba(15,23,42,0.82)' : 'rgba(255,255,255,0.86)',
-                                        color: 'var(--theme-text-secondary, #64748B)',
-                                    }}
-                                >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a14.5 14.5 0 014 9 14.5 14.5 0 01-4 9 14.5 14.5 0 01-4-9 14.5 14.5 0 014-9z" /></svg>
-                                    <span>{settingsCopy.language}</span>
-                                    <span className="rounded-full px-2 py-0.5 text-[11px]" style={{ background: 'var(--theme-primary-bg, #EEF2FF)', color: 'var(--theme-primary, #4F46E5)' }}>
-                                        {locale.toUpperCase()}
-                                    </span>
-                                </button>
-                                {showLocaleMenu && (
-                                    <div
-                                        onClick={(event) => event.stopPropagation()}
-                                        className="absolute right-0 top-full z-30 mt-2 w-44 rounded-2xl border p-2 shadow-xl"
-                                        style={{
-                                            borderColor: 'var(--theme-border-light, #E2E8F0)',
-                                            background: themeKey === 'dark' ? 'rgba(15,23,42,0.97)' : '#ffffff',
-                                        }}
-                                    >
-                                        {SUPPORTED_LOCALES.map((option) => (
-                                            <button
-                                                key={option.key}
-                                                type="button"
-                                                onClick={() => handleLocaleChange(option.key)}
-                                                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition"
-                                                style={locale === option.key
-                                                    ? { background: 'var(--theme-primary-bg, #EEF2FF)', color: 'var(--theme-primary, #4F46E5)' }
-                                                    : { color: 'var(--theme-text-secondary, #64748B)' }}
-                                            >
-                                                <span>{option.label}</span>
-                                                <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">{option.shortLabel}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                            {supportsPageSettings && (
-                                <button
-                                    type="button"
-                                    onClick={handleOpenPageSettings}
-                                    className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition"
-                                    style={{
-                                        borderColor: 'var(--theme-border-light, #E2E8F0)',
-                                        background: themeKey === 'dark' ? 'rgba(15,23,42,0.82)' : 'rgba(255,255,255,0.86)',
-                                        color: 'var(--theme-text-secondary, #64748B)',
-                                    }}
-                                >
-                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="opacity-70">
-                                        <path d="M12 3.75v3.4M12 16.85v3.4M4.85 4.85l2.4 2.4M16.75 16.75l2.4 2.4M3.75 12h3.4M16.85 12h3.4M4.85 19.15l2.4-2.4M16.75 7.25l2.4-2.4" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                    {settingsCopy.settings}
-                                </button>
-                            )}
-                        </div>
-                        <Outlet />
-                    </div>
-                </main>
-            </div>
+            {/* Main content area, padded for the bottom tab bar */}
+            <main
+                className="px-4 pt-4"
+                style={{
+                    paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 110px)',
+                }}
+            >
+                <div className="mx-auto w-full max-w-[1400px]">
+                    <Outlet />
+                </div>
+            </main>
+
+            <BottomTabBar />
             <Toast />
         </div>
     );

@@ -403,458 +403,90 @@ export default function HomePage() {
                 })}
             </div>
 
-            {/* ============ MAIN GRID — 2 columns on desktop ============ */}
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] gap-5">
-
-                {/* ─── LEFT COLUMN ─── */}
-                <div className="space-y-5">
-
-                    {/* Smart Suggestion (sticker callout) */}
-                    {suggestion && suggestion.type !== 'new' && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, rotate: -1.5 }}
-                            animate={{ opacity: 1, scale: 1, rotate: -1 }}
-                            className="card flex gap-4 items-center"
-                            style={{ background: 'var(--bb-accent-4)' }}
+            {/* ============ TODAY'S TASKS — sade tek bölüm ============ */}
+            {isWidgetEnabled('today-tasks') && (
+                <div className="card">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-[15px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
+                            {copy.todayTasks}
+                        </h2>
+                        <Link
+                            to="/tasks"
+                            className="text-[10px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
+                            style={{ color: 'var(--bb-ink)' }}
                         >
-                            <div
-                                className="flex items-center justify-center flex-shrink-0"
-                                style={{
-                                    width: '44px',
-                                    height: '44px',
-                                    borderRadius: '50%',
-                                    background: 'var(--bb-card)',
-                                    border: '2px solid var(--bb-ink)',
-                                    color: 'var(--bb-ink)',
-                                }}
-                            >
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M12 3v3M5.6 5.6l2.1 2.1M3 12h3M5.6 18.4l2.1-2.1M12 18v3M18.4 18.4l-2.1-2.1M21 12h-3M18.4 5.6l-2.1 2.1" /><circle cx="12" cy="12" r="4"/>
-                                </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] mb-1" style={{ color: 'var(--bb-ink)', opacity: 0.65 }}>
-                                    {copy.smartSuggestion}
-                                </p>
-                                <p className="text-[14px] font-bold leading-snug" style={{ color: 'var(--bb-ink)' }}>
-                                    {localizedSuggestionMessage}
-                                </p>
-                            </div>
-                            {suggestion.courseId && (
-                                <button
-                                    onClick={() => navigate(`/pomodoro?courseId=${suggestion.courseId}`)}
-                                    className="btn-primary flex-shrink-0"
-                                    style={{ background: 'var(--bb-card)' }}
-                                >
-                                    {copy.focus}
-                                </button>
-                            )}
-                        </motion.div>
-                    )}
-
-                    {/* Today's Tasks */}
-                    {isWidgetEnabled('today-tasks') && (
-                        <div className="card">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
-                                    {copy.todayTasks}
-                                </h2>
-                                <Link
-                                    to="/tasks"
-                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
-                                    style={{ color: 'var(--bb-ink)' }}
-                                >
-                                    {copy.viewAll} →
-                                </Link>
-                            </div>
-                            {todayTasks.length === 0 ? (
-                                <div
-                                    className="empty-state-card text-center py-7 px-4"
-                                    style={{
-                                        borderRadius: '14px',
-                                        border: '2.5px dashed var(--bb-ink)',
-                                        background: 'var(--bb-paper)',
-                                    }}
-                                >
-                                    <p className="text-[13px] font-bold mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
-                                        {copy.noTasks}
-                                    </p>
-                                    <button onClick={() => navigate('/tasks')} className="btn-primary">
-                                        + {copy.addTask}
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {todayTasks.slice(0, 5).map((task, i) => {
-                                        const course = getCourse(task.courseId);
-                                        return (
-                                            <motion.div
-                                                key={task.id}
-                                                initial={{ opacity: 0, x: -8 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ delay: 0.15 + i * 0.04 }}
-                                                className="flex items-center gap-3 py-2.5 px-3"
-                                                style={{
-                                                    borderRadius: '12px',
-                                                    border: '2px solid var(--bb-ink)',
-                                                    background: 'var(--bb-paper)',
-                                                }}
-                                            >
-                                                <button
-                                                    onClick={() => toggleTask(task.id)}
-                                                    aria-label="toggle task"
-                                                    style={{
-                                                        width: '20px',
-                                                        height: '20px',
-                                                        flexShrink: 0,
-                                                        border: '2px solid var(--bb-ink)',
-                                                        borderRadius: '6px',
-                                                        background: 'var(--bb-card)',
-                                                        cursor: 'pointer',
-                                                    }}
-                                                />
-                                                <span className="text-[13px] font-bold flex-1 truncate" style={{ color: 'var(--bb-ink)' }}>
-                                                    {task.title}
-                                                </span>
-                                                {course && (
-                                                    <span
-                                                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1"
-                                                        style={{
-                                                            borderRadius: '999px',
-                                                            border: '2px solid var(--bb-ink)',
-                                                            background: course.color,
-                                                            color: '#fff',
-                                                        }}
-                                                    >
-                                                        {course.courseName}
-                                                    </span>
-                                                )}
-                                            </motion.div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                            {copy.viewAll} →
+                        </Link>
+                    </div>
+                    {todayTasks.length === 0 ? (
+                        <div
+                            className="text-center py-7 px-4"
+                            style={{
+                                borderRadius: '14px',
+                                border: '2.5px dashed var(--bb-ink)',
+                                background: 'var(--bb-paper)',
+                            }}
+                        >
+                            <p className="text-[13px] font-bold mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
+                                {copy.noTasks}
+                            </p>
+                            <button onClick={() => navigate('/tasks')} className="btn-primary">
+                                + {copy.addTask}
+                            </button>
                         </div>
-                    )}
-
-                    {/* Today's Schedule */}
-                    {isWidgetEnabled('schedule-preview') && (
-                        <div className="card">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
-                                    {copy.todaySchedule}
-                                </h2>
-                                <Link
-                                    to="/schedule"
-                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
-                                    style={{ color: 'var(--bb-ink)' }}
-                                >
-                                    {copy.viewSchedule} →
-                                </Link>
-                            </div>
-                            {todaySchedule.length === 0 ? (
-                                <div
-                                    className="empty-state-card text-center py-7 px-4"
-                                    style={{
-                                        borderRadius: '14px',
-                                        border: '2.5px dashed var(--bb-ink)',
-                                        background: 'var(--bb-paper)',
-                                    }}
-                                >
-                                    <p className="text-[13px] font-bold" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
-                                        {copy.noSchedule}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    {todaySchedule.slice(0, 4).map((entry) => {
-                                        const course = getCourse(entry.courseId);
-                                        return (
-                                            <div
-                                                key={entry.id}
-                                                className="flex items-center gap-3 py-2.5 px-3"
-                                                style={{
-                                                    borderRadius: '12px',
-                                                    border: '2px solid var(--bb-ink)',
-                                                    background: 'var(--bb-paper)',
-                                                    cursor: 'pointer',
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        width: '6px',
-                                                        height: '36px',
-                                                        borderRadius: '3px',
-                                                        flexShrink: 0,
-                                                        background: course?.color || 'var(--bb-ink)',
-                                                        border: '1.5px solid var(--bb-ink)',
-                                                    }}
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-[13px] font-extrabold truncate" style={{ color: 'var(--bb-ink)' }}>
-                                                        {course?.courseName || copy.viewCourseFallback}
-                                                    </div>
-                                                    <div className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--bb-ink)', opacity: 0.6 }}>
-                                                        {formatTime24(entry.startTime)} – {formatTime24(entry.endTime)}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Daily Reflection */}
-                    {todaySessions.length > 0 && !user?.dailyReflections?.[today] && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="card"
-                            style={{ background: 'var(--bb-accent-3)' }}
-                        >
-                            <h3 className="text-[16px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
-                                {copy.dailyReflection}
-                            </h3>
-                            <p className="text-[12px] font-medium mt-1 mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
-                                {copy.dailyReflectionPrompt}
-                            </p>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[
-                                    { label: copy.productive, emoji: '🙂', value: 'productive' },
-                                    { label: copy.average, emoji: '😐', value: 'average' },
-                                    { label: copy.lowFocus, emoji: '😴', value: 'low focus' },
-                                ].map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        onClick={() => handleReflection(opt.value)}
-                                        className="btn-secondary justify-center"
-                                        style={{ flexDirection: 'column', padding: '0.625rem', fontSize: '11px' }}
-                                    >
-                                        <span className="text-[18px]" style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji",emoji' }}>{opt.emoji}</span>
-                                        <span className="font-bold uppercase tracking-wider mt-1">{opt.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-                </div>
-
-                {/* ─── RIGHT COLUMN ─── */}
-                <div className="space-y-5">
-
-                    {/* Weekly Goal */}
-                    {isWidgetEnabled('weekly-goal') && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="card card-interactive"
-                            style={{ background: 'var(--bb-accent-2)' }}
-                            onClick={() => { setGoalInput(Math.round(weeklyGoal / 60).toString()); setShowGoalModal(true); }}
-                        >
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
-                                    {copy.weeklyGoal}
-                                </h3>
-                                <span className="badge" style={{ background: 'var(--bb-card)' }}>
-                                    {Math.round(weeklyProgress)}%
-                                </span>
-                            </div>
-                            <p className="text-[24px] font-extrabold leading-none mb-1" style={{ color: 'var(--bb-ink)' }}>
-                                {Math.floor(weeklyMinutes / 60)}h {weeklyMinutes % 60}m
-                            </p>
-                            <p className="text-[11px] font-bold mb-3" style={{ color: 'var(--bb-ink)', opacity: 0.7 }}>
-                                / {Math.floor(weeklyGoal / 60)}h {copy.goalSuffix}
-                            </p>
-                            <div className="weekly-goal-bar w-full" style={{ height: '12px', borderRadius: '8px', background: 'var(--bb-card)', border: '2px solid var(--bb-ink)', overflow: 'hidden' }}>
-                                <motion.div
-                                    className="weekly-goal-fill h-full"
-                                    style={{ background: 'var(--bb-ink)' }}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${weeklyProgress}%` }}
-                                    transition={{ duration: 1, delay: 0.3 }}
-                                />
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* Rewards / Sky */}
-                    {isWidgetEnabled('streak-status') && (
-                        <div className="card">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
-                                    {copy.yourSky}
-                                </h3>
-                                <Link
-                                    to="/rewards"
-                                    className="text-[11px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
-                                    style={{ color: 'var(--bb-ink)' }}
-                                >
-                                    {copy.details} →
-                                </Link>
-                            </div>
-                            <YourSkyScene
-                                compact
-                                sessionsCompleted={stats.totalSessions}
-                                streak={user?.streakCount || 0}
-                                totalMinutes={stats.totalMinutes}
-                                className="mb-3"
-                            />
-                            {user?.streakCount > 0 && !user?.streakProtected && (
-                                <button
-                                    onClick={handleProtectStreak}
-                                    className="w-full flex items-center justify-between py-2.5 px-3 mt-2"
-                                    style={{
-                                        borderRadius: '12px',
-                                        border: '2px solid var(--bb-ink)',
-                                        background: 'var(--bb-accent-1)',
-                                        color: 'var(--bb-ink)',
-                                        cursor: 'pointer',
-                                        fontSize: '12px',
-                                        fontWeight: '700',
-                                    }}
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <span style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji",emoji' }}>🛡️</span>
-                                        {copy.protectStreak}
-                                    </span>
-                                    <span
-                                        className="px-2 py-0.5"
+                    ) : (
+                        <div className="space-y-2">
+                            {todayTasks.slice(0, 3).map((task, i) => {
+                                const course = getCourse(task.courseId);
+                                return (
+                                    <motion.div
+                                        key={task.id}
+                                        initial={{ opacity: 0, x: -8 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.15 + i * 0.04 }}
+                                        className="flex items-center gap-3 py-2.5 px-3"
                                         style={{
-                                            borderRadius: '6px',
-                                            border: '1.5px solid var(--bb-ink)',
-                                            background: 'var(--bb-card)',
-                                            fontSize: '10px',
+                                            borderRadius: '12px',
+                                            border: '2px solid var(--bb-ink)',
+                                            background: 'var(--bb-paper)',
                                         }}
                                     >
-                                        50 {locale === 'tr' ? 'jeton' : 'coins'}
-                                    </span>
-                                </button>
-                            )}
-                            {user?.streakProtected && (
-                                <div
-                                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 mt-2"
-                                    style={{
-                                        borderRadius: '12px',
-                                        border: '2px solid var(--bb-ink)',
-                                        background: 'var(--bb-accent-2)',
-                                        color: 'var(--bb-ink)',
-                                        fontSize: '12px',
-                                        fontWeight: '700',
-                                    }}
-                                >
-                                    <span style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji",emoji' }}>✨</span>
-                                    {copy.streakProtected}
-                                </div>
-                            )}
+                                        <button
+                                            onClick={() => toggleTask(task.id)}
+                                            aria-label="toggle task"
+                                            style={{
+                                                width: '20px',
+                                                height: '20px',
+                                                flexShrink: 0,
+                                                border: '2px solid var(--bb-ink)',
+                                                borderRadius: '6px',
+                                                background: 'var(--bb-card)',
+                                                cursor: 'pointer',
+                                            }}
+                                        />
+                                        <span className="text-[13px] font-bold flex-1 truncate" style={{ color: 'var(--bb-ink)' }}>
+                                            {task.title}
+                                        </span>
+                                        {course && (
+                                            <span
+                                                className="text-[9px] font-bold uppercase tracking-wider px-2 py-1"
+                                                style={{
+                                                    borderRadius: '999px',
+                                                    border: '2px solid var(--bb-ink)',
+                                                    background: course.color,
+                                                    color: '#fff',
+                                                }}
+                                            >
+                                                {course.courseName}
+                                            </span>
+                                        )}
+                                    </motion.div>
+                                );
+                            })}
                         </div>
                     )}
-
-                    {/* Global Study Room — sade brutalist */}
-                    {isWidgetEnabled('global-study-room') && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="card"
-                        >
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-[14px] font-extrabold uppercase tracking-tight" style={{ color: 'var(--bb-ink)' }}>
-                                    {copy.globalStudyRoom}
-                                </h3>
-                                <span
-                                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider"
-                                    style={{ color: 'var(--bb-ink)' }}
-                                >
-                                    <span
-                                        className="animate-pulse"
-                                        style={{
-                                            width: '8px',
-                                            height: '8px',
-                                            borderRadius: '50%',
-                                            background: 'var(--bb-accent-5)',
-                                            border: '1.5px solid var(--bb-ink)',
-                                        }}
-                                    />
-                                    {copy.live}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-3 mb-3">
-                                <p className="text-[36px] font-extrabold leading-none tracking-tight" style={{ color: 'var(--bb-ink)' }}>
-                                    {focusingUsers.length || studyRoomUsers.length}
-                                </p>
-                                <p className="text-[11px] font-bold leading-tight" style={{ color: 'var(--bb-ink)', opacity: 0.65 }}>
-                                    {roomCountLines[0]}<br />{roomCountLines[1]}
-                                </p>
-                            </div>
-                            {displayedStudyRoomUsers.length > 0 && (
-                                <div className="flex items-center gap-1.5 flex-wrap mb-3">
-                                    {displayedStudyRoomUsers.map((member) => (
-                                        <div
-                                            key={member.id}
-                                            className="px-2 py-1 text-[10px] font-bold"
-                                            style={{
-                                                borderRadius: '999px',
-                                                border: '2px solid var(--bb-ink)',
-                                                background: 'var(--bb-paper)',
-                                                color: 'var(--bb-ink)',
-                                            }}
-                                        >
-                                            {(typeof member.displayName === 'string' && member.displayName.trim()
-                                                ? member.displayName
-                                                : 'Student').split(' ')[0]}
-                                        </div>
-                                    ))}
-                                    {studyRoomUsers.length > displayedStudyRoomUsers.length && (
-                                        <div
-                                            className="px-2 py-1 text-[10px] font-bold"
-                                            style={{
-                                                borderRadius: '999px',
-                                                border: '2px solid var(--bb-ink)',
-                                                background: 'var(--bb-accent-1)',
-                                                color: 'var(--bb-ink)',
-                                            }}
-                                        >
-                                            +{studyRoomUsers.length - displayedStudyRoomUsers.length}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            <button
-                                onClick={() => navigate('/pomodoro?mode=deep')}
-                                className="btn-primary w-full justify-center"
-                            >
-                                {copy.joinStudyRoom}
-                            </button>
-                            <button
-                                onClick={() => updateUser({ publicProfileEnabled: !isPublicPresenceEnabled })}
-                                className="text-[11px] font-bold uppercase tracking-wider w-full text-center mt-2 underline-offset-2 hover:underline"
-                                style={{ color: 'var(--bb-ink)', opacity: 0.65, background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
-                            >
-                                {isPublicPresenceEnabled ? copy.disablePublicPresence : copy.enablePublicPresence}
-                            </button>
-                        </motion.div>
-                    )}
-
-                    {/* Quote of the Day */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="card"
-                        style={{ background: 'var(--bb-paper)' }}
-                    >
-                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--bb-ink)', opacity: 0.55 }}>
-                            {copy.quoteOfTheDay}
-                        </p>
-                        <p className="text-[14px] font-medium italic leading-relaxed" style={{ color: 'var(--bb-ink)' }}>
-                            "{localizedQuoteText}"
-                        </p>
-                        <p className="text-[11px] font-bold uppercase tracking-wider mt-2" style={{ color: 'var(--bb-ink)', opacity: 0.6 }}>
-                            — {dailyQuote.author}
-                        </p>
-                    </motion.div>
                 </div>
-            </div>
+            )}
 
             {/* ============ MODALS ============ */}
             <Modal isOpen={showGoalModal} onClose={() => setShowGoalModal(false)} title={copy.weeklyStudyGoal}>
