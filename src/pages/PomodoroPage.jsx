@@ -1368,10 +1368,11 @@ export default function PomodoroPage() {
 
                         <div className="space-y-6">
                                 <div
-                                    className="overflow-hidden rounded-[32px] shadow-[0_30px_70px_rgba(148,163,184,0.12)] backdrop-blur-md"
+                                    className="overflow-hidden rounded-[24px]"
                                     style={{
-                                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(226,232,240,1)'}`,
-                                        background: isDark ? 'rgba(12,18,30,0.92)' : isBarbie ? 'rgba(255, 249, 252, 0.9)' : 'rgba(255,255,255,0.8)',
+                                        border: 'var(--bb-border-w) solid var(--bb-ink)',
+                                        background: 'var(--bb-card)',
+                                        boxShadow: '5px 5px 0 var(--bb-shadow)',
                                     }}
                                 >
                                     <div className="px-6 pb-7 pt-6">
@@ -1386,15 +1387,20 @@ export default function PomodoroPage() {
                                                             targetEndTimeRef.current = null;
                                                         }
                                                     }}
-                                                    className="rounded-full px-4 py-2 text-sm font-semibold transition-all"
+                                                    className="px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all"
                                                     style={sessionType === type.key
                                                         ? {
-                                                            background: isDark ? 'rgba(99,102,241,0.88)' : isBarbie ? 'linear-gradient(135deg, #E11D74 0%, #EC4899 100%)' : '#0f172a',
-                                                            color: '#ffffff',
+                                                            borderRadius: '999px',
+                                                            border: '2.5px solid var(--bb-ink)',
+                                                            background: 'var(--bb-accent-1)',
+                                                            color: 'var(--bb-ink)',
+                                                            boxShadow: '3px 3px 0 var(--bb-shadow)',
                                                         }
                                                         : {
-                                                            background: isDark ? 'rgba(255,255,255,0.06)' : isBarbie ? 'rgba(253, 242, 248, 0.95)' : 'rgba(241,245,249,0.8)',
-                                                            color: isDark ? 'rgba(226,232,240,0.72)' : isBarbie ? '#A61B64' : '#64748b',
+                                                            borderRadius: '999px',
+                                                            border: '2.5px solid var(--bb-ink)',
+                                                            background: 'var(--bb-card)',
+                                                            color: 'var(--bb-ink)',
                                                         }}
                                                 >
                                                     {copy.sessionTypes[type.key] || type.label}
@@ -1459,16 +1465,14 @@ export default function PomodoroPage() {
                                                     )}
 
                                                     <div
-                                                        className="absolute inset-6 flex flex-col items-center justify-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.95)]"
+                                                        className="absolute inset-6 flex flex-col items-center justify-center rounded-full"
                                                         style={{
-                                                            background: isDark
-                                                                ? 'radial-gradient(circle at top, rgba(30,41,59,0.98) 0%, rgba(15,23,42,0.94) 52%, rgba(2,6,23,0.96) 100%)'
-                                                                : isBarbie
-                                                                    ? 'radial-gradient(circle at top, #fff8fc 0%, #ffe7f3 52%, #ffe1ef 100%)'
-                                                                    : 'radial-gradient(circle at top,#ffffff 0%,#f7fbff 52%,#eef6ff 100%)',
+                                                            background: 'var(--bb-card)',
+                                                            border: '2.5px solid var(--bb-ink)',
+                                                            boxShadow: 'inset 3px 3px 0 var(--bb-shadow)',
                                                         }}
                                                     >
-                                                        <div className="text-[clamp(3.6rem,14vw,5.2rem)] font-semibold tracking-[-0.08em]" style={{ color: isDark ? '#f8fafc' : isBarbie ? '#831843' : '#0f172a' }}>
+                                                        <div className="text-[clamp(3.6rem,14vw,5.2rem)] font-extrabold tracking-[-0.08em]" style={{ color: 'var(--bb-ink)' }}>
                                                             {clock.minutes}:{clock.seconds}
                                                         </div>
                                                     </div>
@@ -1477,10 +1481,11 @@ export default function PomodoroPage() {
 
                                             <div className="space-y-4">
                                                 <div
-                                                    className="rounded-[28px] p-4"
+                                                    className="rounded-[20px] p-4"
                                                     style={{
-                                                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(241,245,249,1)'}`,
-                                                        background: isDark ? 'rgba(255,255,255,0.03)' : isBarbie ? 'rgba(255,244,250,0.75)' : 'rgba(248,250,252,0.8)',
+                                                        border: '2.5px solid var(--bb-ink)',
+                                                        background: 'var(--bb-paper)',
+                                                        boxShadow: '3px 3px 0 var(--bb-shadow)',
                                                     }}
                                                 >
                                                     <div className="flex flex-wrap gap-2">
@@ -1488,17 +1493,20 @@ export default function PomodoroPage() {
                                                             <button
                                                                 key={preset.key}
                                                                 onClick={() => applyPreset(preset.key)}
-                                                                className="rounded-full border px-4 py-2 text-sm font-semibold transition-all"
+                                                                className="px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all"
                                                                 style={selectedPreset === preset.key
                                                                     ? {
-                                                                        borderColor: 'transparent',
-                                                                        background: isDark ? 'rgba(99,102,241,0.88)' : isBarbie ? 'linear-gradient(135deg, #E11D74 0%, #EC4899 100%)' : '#0f172a',
-                                                                        color: '#ffffff',
+                                                                        borderRadius: '999px',
+                                                                        border: '2.5px solid var(--bb-ink)',
+                                                                        background: 'var(--bb-accent-1)',
+                                                                        color: 'var(--bb-ink)',
+                                                                        boxShadow: '2px 2px 0 var(--bb-shadow)',
                                                                     }
                                                                     : {
-                                                                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(226,232,240,1)',
-                                                                        background: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff',
-                                                                        color: isDark ? 'rgba(226,232,240,0.72)' : isBarbie ? '#A61B64' : '#475569',
+                                                                        borderRadius: '999px',
+                                                                        border: '2.5px solid var(--bb-ink)',
+                                                                        background: 'var(--bb-card)',
+                                                                        color: 'var(--bb-ink)',
                                                                     }}
                                                             >
                                                                 {preset.label}
@@ -1507,18 +1515,19 @@ export default function PomodoroPage() {
                                                     </div>
                                                 </div>
                                                 <div
-                                                    className="rounded-[28px] p-4"
+                                                    className="rounded-[20px] p-4"
                                                     style={{
-                                                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(241,245,249,1)'}`,
-                                                        background: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
+                                                        border: '2.5px solid var(--bb-ink)',
+                                                        background: 'var(--bb-card)',
+                                                        boxShadow: '3px 3px 0 var(--bb-shadow)',
                                                     }}
                                                 >
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between gap-3">
-                                                            <label className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--theme-text-muted, #94a3b8)' }}>
+                                                            <label className="text-[11px] font-extrabold uppercase tracking-[0.18em]" style={{ color: 'var(--bb-ink)' }}>
                                                                 {copy.ambientSound}
                                                             </label>
-                                                            <span className="text-xs font-medium" style={{ color: 'var(--theme-text-muted, #94a3b8)' }}>
+                                                            <span className="text-xs font-bold" style={{ color: 'var(--bb-ink)', opacity: 0.65 }}>
                                                                 {ambientVolume}%
                                                             </span>
                                                         </div>
@@ -1527,20 +1536,23 @@ export default function PomodoroPage() {
                                                                 <button
                                                                     key={sound.id}
                                                                     onClick={() => handleAmbientSoundChange(sound.id)}
-                                                                    className="rounded-full border px-3 py-2 text-sm font-semibold transition-all"
+                                                                    className="px-3 py-2 text-xs font-bold uppercase tracking-wider transition-all"
                                                                     style={ambientSound === sound.id
                                                                         ? {
-                                                                            borderColor: 'transparent',
-                                                                            background: isDark ? 'rgba(99,102,241,0.88)' : isBarbie ? 'linear-gradient(135deg, #E11D74 0%, #EC4899 100%)' : '#0f172a',
-                                                                            color: '#ffffff',
+                                                                            borderRadius: '999px',
+                                                                            border: '2px solid var(--bb-ink)',
+                                                                            background: 'var(--bb-accent-1)',
+                                                                            color: 'var(--bb-ink)',
+                                                                            boxShadow: '2px 2px 0 var(--bb-shadow)',
                                                                         }
                                                                         : {
-                                                                            borderColor: isDark ? 'rgba(255,255,255,0.08)' : isBarbie ? 'rgba(225,29,114,0.14)' : 'rgba(226,232,240,1)',
-                                                                            background: isDark ? 'rgba(255,255,255,0.04)' : isBarbie ? 'rgba(253,242,248,0.95)' : '#f8fafc',
-                                                                            color: isDark ? 'rgba(226,232,240,0.72)' : isBarbie ? '#A61B64' : '#475569',
+                                                                            borderRadius: '999px',
+                                                                            border: '2px solid var(--bb-ink)',
+                                                                            background: 'var(--bb-paper)',
+                                                                            color: 'var(--bb-ink)',
                                                                         }}
                                                                 >
-                                                                    <span className="mr-1.5">{sound.emoji}</span>
+                                                                    <span className="mr-1.5" style={{ fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",emoji' }}>{sound.emoji}</span>
                                                                     {copy.soundLabels[sound.id] || sound.label}
                                                                 </button>
                                                             ))}

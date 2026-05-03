@@ -60,35 +60,27 @@ export async function startAmbientSound(type, volume = 0.45) {
 
     const audio = new Audio(src);
     audio.preload = 'auto';
-    audio.loop = false;
+    // Use the browser's native loop so iOS WKWebView keeps the audio
+    // playing even when the JS event loop is throttled.
+    audio.loop = true;
     audio.volume = clampVolume(volume);
+    // iOS requires this attribute for media to play in WKWebView without
+    // taking over the screen as a fullscreen player.
+    audio.setAttribute('playsinline', '');
+    audio.setAttribute('webkit-playsinline', '');
 
-    const restartAt = () => {
-        const loopPoint = Number.isFinite(audio.duration) && audio.duration > 0
-            ? Math.min(audio.duration, MAX_LOOP_SECONDS)
-            : MAX_LOOP_SECONDS;
-
-        if (audio.currentTime >= loopPoint) {
-            audio.currentTime = 0;
-            audio.play().catch(() => {});
-        }
-    };
-
-    const restartOnEnd = () => {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-    };
-
-    audio.addEventListener('timeupdate', restartAt);
-    audio.addEventListener('ended', restartOnEnd);
-
-    activeCleanup = () => {
-        audio.removeEventListener('timeupdate', restartAt);
-        audio.removeEventListener('ended', restartOnEnd);
-    };
+    activeCleanup = () => {};
 
     activeAudio = audio;
-    await audio.play();
+
+    try {
+        await audio.play();
+    } catch (error) {
+        // iOS can reject play() if not within a direct user-gesture chain.
+        // Surface the error so callers can react (e.g. show a "tap to enable
+        // sound" hint), but don't crash.
+        console.warn('Ambient sound play() rejected:', error?.message || error);
+    }
 }
 
 export function stopAmbientSound() {

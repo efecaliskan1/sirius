@@ -49,7 +49,7 @@ const TABS = [
         to: '/',
         labelKey: 'home',
         icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
@@ -59,7 +59,7 @@ const TABS = [
         to: '/pomodoro',
         labelKey: 'focus',
         icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="9" />
                 <polyline points="12 6 12 12 16 14" />
             </svg>
@@ -69,7 +69,7 @@ const TABS = [
         to: '/tasks',
         labelKey: 'tasks',
         icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 11l3 3L22 4" />
                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
             </svg>
@@ -79,11 +79,21 @@ const TABS = [
         to: '/schedule',
         labelKey: 'schedule',
         icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+        ),
+    },
+    {
+        to: '/courses',
+        labelKey: 'courses',
+        icon: (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
             </svg>
         ),
     },
@@ -92,22 +102,11 @@ const TABS = [
 // Items inside the More sheet
 const MORE_ITEMS = [
     {
-        to: '/courses',
-        labelKey: 'courses',
-        accent: 'var(--bb-accent-3)',
-        icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-            </svg>
-        ),
-    },
-    {
         to: '/stats',
         labelKey: 'stats',
         accent: 'var(--bb-accent-2)',
         icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="20" x2="18" y2="10" />
                 <line x1="12" y1="20" x2="12" y2="4" />
                 <line x1="6" y1="20" x2="6" y2="14" />
@@ -119,7 +118,7 @@ const MORE_ITEMS = [
         labelKey: 'leaderboard',
         accent: 'var(--bb-accent-4)',
         icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M8 21h8" /><path d="M12 17v4" />
                 <path d="M7 4h10v5a5 5 0 01-10 0V4z" />
                 <path d="M17 6h2a2 2 0 010 4h-2" />
@@ -132,7 +131,7 @@ const MORE_ITEMS = [
         labelKey: 'rewards',
         accent: 'var(--bb-accent-1)',
         icon: (
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="8" r="7" />
                 <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
             </svg>
@@ -215,11 +214,11 @@ export default function BottomTabBar() {
                 <div
                     className="mx-auto flex items-center justify-around"
                     style={{
-                        maxWidth: '460px',
+                        maxWidth: '540px',
                         background: 'var(--bb-card)',
                         border: 'var(--bb-border-w) solid var(--bb-ink)',
                         borderRadius: '22px',
-                        padding: '8px 6px',
+                        padding: '6px 4px',
                         boxShadow: '4px 4px 0 var(--bb-shadow)',
                     }}
                 >
@@ -238,16 +237,16 @@ export default function BottomTabBar() {
                                         border: '2px solid var(--bb-ink)',
                                         borderRadius: '14px',
                                         boxShadow: '2px 2px 0 var(--bb-shadow)',
-                                        padding: '6px 10px',
+                                        padding: '5px 6px',
                                         color: 'var(--bb-ink)',
                                     } : {
-                                        padding: '6px 10px',
+                                        padding: '5px 6px',
                                         color: 'var(--bb-ink)',
                                         opacity: 0.55,
                                     }}
                                 >
                                     {tab.icon}
-                                    <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">
+                                    <span className="text-[8px] font-bold uppercase tracking-wider mt-0.5">
                                         {copy[tab.labelKey]}
                                     </span>
                                 </span>
@@ -264,17 +263,17 @@ export default function BottomTabBar() {
                         <span
                             className="flex flex-col items-center gap-0.5"
                             style={{
-                                padding: '6px 10px',
+                                padding: '5px 6px',
                                 color: 'var(--bb-ink)',
                                 opacity: showMore ? 1 : 0.55,
                             }}
                         >
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="5" cy="12" r="1.5" />
                                 <circle cx="12" cy="12" r="1.5" />
                                 <circle cx="19" cy="12" r="1.5" />
                             </svg>
-                            <span className="text-[9px] font-bold uppercase tracking-wider mt-0.5">
+                            <span className="text-[8px] font-bold uppercase tracking-wider mt-0.5">
                                 {copy.more}
                             </span>
                         </span>
