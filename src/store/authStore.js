@@ -66,6 +66,8 @@ const SAFE_PROFILE_UPDATE_FIELDS = new Set([
     'dashboardWidgets',
     'publicProfileEnabled',
     'dailyReflections',
+    'profilePhoto',
+    'name',
 ]);
 let presenceIntervalId = null;
 let visibilityCleanup = null;
@@ -637,6 +639,30 @@ function sanitizeProfileUpdates(updates, currentUser) {
 
         if (key === 'publicProfileEnabled') {
             sanitized.publicProfileEnabled = Boolean(value);
+            continue;
+        }
+
+        if (key === 'profilePhoto') {
+            // Allow null/empty to clear, or a data URL/https URL up to ~700KB
+            // (Firestore field limit is 1MiB; we keep margin).
+            if (value === null || value === '') {
+                sanitized.profilePhoto = '';
+                continue;
+            }
+            if (typeof value === 'string' && value.length <= 700000 &&
+                (value.startsWith('data:image/') || value.startsWith('https://'))) {
+                sanitized.profilePhoto = value;
+            }
+            continue;
+        }
+
+        if (key === 'name') {
+            if (typeof value === 'string') {
+                const trimmed = value.trim().slice(0, 60);
+                if (trimmed.length > 0) {
+                    sanitized.name = trimmed;
+                }
+            }
             continue;
         }
 

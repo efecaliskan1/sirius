@@ -138,29 +138,16 @@ export default function TasksPage() {
         ...option,
         label: copy.priorityLabels?.[option.value] || option.label,
     }));
-    const filterShellBackground = isDark
-        ? 'linear-gradient(180deg, rgba(27,37,60,0.98), rgba(14,21,38,0.98))'
-        : isBarbie
-            ? 'rgba(253,242,248,0.96)'
-            : 'rgba(241,245,249,0.92)';
+    const filterShellBackground = 'var(--bb-paper)';
     const filterButtonStyle = (active) => ({
-        background: active
-            ? isDark
-                ? 'linear-gradient(180deg, rgba(124,108,243,0.34), rgba(99,102,241,0.24))'
-                : '#ffffff'
-            : 'transparent',
-        color: active
-            ? isDark
-                ? '#f8fafc'
-                : '#111827'
-            : isDark
-                ? 'rgba(226,232,240,0.82)'
-                : '#94a3b8',
-        boxShadow: active
-            ? isDark
-                ? '0 14px 26px rgba(2,6,23,0.42)'
-                : '0 2px 8px rgba(15,23,42,0.08)'
-            : 'none',
+        background: active ? 'var(--bb-accent-1)' : 'transparent',
+        color: 'var(--bb-ink)',
+        border: active ? '2px solid var(--bb-ink)' : '2px solid transparent',
+        boxShadow: active ? '2px 2px 0 var(--bb-shadow)' : 'none',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.04em',
+        transition: 'transform 0.1s ease, box-shadow 0.1s ease',
     });
     const getPriorityMeta = (priority) => {
         const label = copy.priorityLabels?.[priority] || priority || copy.priorityLabels.medium;
@@ -330,11 +317,11 @@ export default function TasksPage() {
             {/* Filters */}
             <div className="flex items-center gap-2 mb-5 flex-wrap">
                 <div
-                    className="flex rounded-xl p-0.5 gap-0.5 border"
+                    className="flex rounded-xl p-1 gap-1"
                     style={{
                         background: filterShellBackground,
-                        borderColor: isDark ? 'rgba(148,163,184,0.14)' : 'var(--theme-border-light, #e2e8f0)',
-                        boxShadow: isDark ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'none',
+                        border: 'var(--bb-border-w) solid var(--bb-ink)',
+                        boxShadow: '3px 3px 0 var(--bb-shadow)',
                     }}
                 >
                     {FILTER_TABS.map((tab) => (

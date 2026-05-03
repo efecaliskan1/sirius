@@ -99,11 +99,50 @@ export default function Sidebar({ mobile = false, isOpen = false, onClose = () =
         const file = event.target.files?.[0];
         if (!file) return;
 
+        // Validate type
+        if (!file.type.startsWith('image/')) {
+            event.target.value = '';
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = () => {
-            if (typeof reader.result === 'string') {
-                updateUser({ profilePhoto: reader.result });
-            }
+            if (typeof reader.result !== 'string') return;
+
+            // Resize + compress to ~256x256 JPEG so it fits in Firestore (<1MiB)
+            const img = new Image();
+            img.onload = () => {
+                try {
+                    const SIZE = 256;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = SIZE;
+                    canvas.height = SIZE;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        // Fallback: use raw if too small
+                        if (reader.result.length < 700000) {
+                            updateUser({ profilePhoto: reader.result });
+                        }
+                        return;
+                    }
+                    // Cover-crop center square
+                    const minSide = Math.min(img.width, img.height);
+                    const sx = (img.width - minSide) / 2;
+                    const sy = (img.height - minSide) / 2;
+                    ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, SIZE, SIZE);
+                    const compressed = canvas.toDataURL('image/jpeg', 0.85);
+                    updateUser({ profilePhoto: compressed });
+                } catch (_err) {
+                    // Last-ditch fallback
+                    if (typeof reader.result === 'string' && reader.result.length < 700000) {
+                        updateUser({ profilePhoto: reader.result });
+                    }
+                }
+            };
+            img.onerror = () => {
+                // Image load failed — ignore
+            };
+            img.src = reader.result;
         };
         reader.readAsDataURL(file);
         event.target.value = '';

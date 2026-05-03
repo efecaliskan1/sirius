@@ -1177,10 +1177,21 @@ export default function PomodoroPage() {
                                             <button
                                                 key={sound.id}
                                                 onClick={() => handleAmbientSoundChange(sound.id)}
-                                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${ambientSound === sound.id
-                                                    ? 'border-white bg-white text-slate-900'
-                                                    : 'border-white/12 bg-white/5 text-slate-200'
-                                                    }`}
+                                                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-all"
+                                                style={ambientSound === sound.id
+                                                    ? {
+                                                        borderRadius: '9999px',
+                                                        border: '2px solid #1a1a1a',
+                                                        background: '#FCD34D',
+                                                        color: '#1a1a1a',
+                                                        boxShadow: '2px 2px 0 #1a1a1a',
+                                                    }
+                                                    : {
+                                                        borderRadius: '9999px',
+                                                        border: '2px solid rgba(255,255,255,0.4)',
+                                                        background: 'rgba(255,255,255,0.06)',
+                                                        color: 'rgba(255,255,255,0.85)',
+                                                    }}
                                             >
                                                 <span className="mr-1.5">{sound.emoji}</span>
                                                 {copy.soundLabels[sound.id] || sound.label}
